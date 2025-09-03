@@ -19,3 +19,8 @@
 - not limited to any compression technique
 - we are going to be running these llms on a server/cloud contact dr arthur choi
 - we have 3 milestones where we should present slides (expected sept, oct, nov)
+
+## Takeaways/TO-DOs
+- Find and Compare 3 open-source models that perform well for code debugging & refactoring code from one language to another
+- Figure out if CodeBleu is going to be how we grab metrics or if there is something else we can follow
+- Work on RAD- SRS and SDD
