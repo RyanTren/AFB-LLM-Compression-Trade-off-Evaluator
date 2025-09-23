@@ -1,65 +1,67 @@
-# syntax=docker/dockerfile:1
+FROM python:3.13.5-slim
 
-# Comments are provided throughout this file to help you get started.
-# If you need more help, visit the Dockerfile reference guide at
-# https://docs.docker.com/go/dockerfile-reference/
-
-# Want to help us make this template better? Share your feedback here: https://forms.gle/ybq9Krt8jtBL3iCk7
-
-ARG PYTHON_VERSION=3.13.5
-FROM python:${PYTHON_VERSION}-slim as base
-
-# Prevents Python from writing pyc files.
+# Prevent Python from writing pyc files and buffering stdout/stderr
 ENV PYTHONDONTWRITEBYTECODE=1
-
-# Keeps Python from buffering stdout and stderr to avoid situations where
-# the application crashes without emitting any logs due to buffering.
 ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Create a non-privileged user that the app will run under.
-# See https://docs.docker.com/go/dockerfile-user-best-practices/
+# Install system dependencies required to build some Python packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    git \
+    curl \
+    ca-certificates \
+    libssl-dev \
+    pkg-config \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create a non-privileged user that the app will run under
 ARG UID=10001
-RUN adduser \
-    --disabled-password \
-    --gecos "" \
-    --home "/nonexistent" \
-    --shell "/sbin/nologin" \
-    --no-create-home \
-    --uid "${UID}" \
-    appuser
+RUN useradd --uid ${UID} --create-home --shell /bin/false appuser
 
-FROM fedora:latest
+# Copy requirements first to leverage Docker layer caching
+COPY requirements.txt ./
 
-# Install build dependencies including curl and development tools
-RUN dnf -y update && \
-    dnf -y install curl gcc make
+# Install rustup and make sure cargo/rustc are available in PATH for subsequent pip builds
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    build-essential \
+    gcc \
+    git \
+    libssl-dev \
+    pkg-config \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/* && \
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o /tmp/rustup.sh && \
+    chmod +x /tmp/rustup.sh && \
+    /tmp/rustup.sh -y --no-modify-path && \
+    rm /tmp/rustup.sh && \
+    # create a profile snippet that adds cargo to PATH for future shells and ensure variables are available
+    printf '%s\n' "export CARGO_HOME=/root/.cargo" "export RUSTUP_HOME=/root/.rustup" "export PATH=/root/.cargo/bin:$PATH" > /etc/profile.d/cargo.sh && \
+    chmod +x /etc/profile.d/cargo.sh
 
-# Install rustup and Rust compiler
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
-
-# Add Rust to PATH (rustup installs to /root/.cargo/bin)
+# Ensure the Rust toolchain is on PATH for this RUN by explicitly exporting it.
+ENV CARGO_HOME=/root/.cargo
+ENV RUSTUP_HOME=/root/.rustup
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# Install Python and pip if not included by default (Fedora base image may not have Python)
-RUN dnf -y install python3 python3-pip
-# Download dependencies as a separate step to take advantage of Docker's caching.
-# Leverage a cache mount to /root/.cache/pip to speed up subsequent builds.
-# Leverage a bind mount to requirements.txt to avoid having to copy them into
-# into this layer.
+# Install Python dependencies with pip; use cache directory
 RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=bind,source=requirements.txt,target=requirements.txt \
+    python -m pip install --upgrade pip && \
     python -m pip install -r requirements.txt
 
-# Switch to the non-privileged user to run the application.
-USER appuser
-
-# Copy the source code into the container.
+# Copy application source
 COPY . .
 
-# Expose the port that the application listens on.
+# Ensure non-root user owns the app files
+RUN chown -R appuser:appuser /app
+USER appuser
+
 EXPOSE 8000
 
-# Run the application.
-CMD llama3.3
+# Default command: run the project's main Python module. Adjust if different.
+CMD ["python", "/app/main.py"]
