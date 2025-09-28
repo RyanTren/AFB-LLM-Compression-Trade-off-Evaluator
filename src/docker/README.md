@@ -1,96 +1,45 @@
-# Llama3.3 8B LLM Docker Setup
+# Docker: CPU & GPU build (multi-stage)
 
-This repository contains instructions for building, running, and publishing a Docker image for the **Llama3.3** project. It includes a `Dockerfile`, `compose.yaml`, and an updated `requirements.txt` for Python dependencies.
+This folder contains the multi-stage `Dockerfile` used to build two runtime images:
 
----
+- `final-cpu` — a CPU-only image built from `python:3.13.5-slim` (smaller, default entrypoint runs `/app/main.py`).
+- `final-gpu` — a CUDA-enabled image built from `pytorch/pytorch:2.1.2-cuda11.8-cudnn8-runtime` (default entrypoint runs `/app/quantize_llama_gptq.py`).
 
-## Prerequisites
+Key points
+- The Dockerfile uses builder stages to install build-time tooling (including `rustup`) so Rust-backed Python packages (for example, `tiktoken`) can be compiled.
+- Each final image copies a virtualenv from its respective builder stage. This keeps the runtime images consistent with what was built but avoids keeping all build-layer artifacts in the final image layer history.
 
-- Docker installed on your machine ([Download Docker](https://www.docker.com/get-started))
-- Docker Hub account for publishing images
-- Git installed
-- (Optional) Windows users may need to adjust the Dockerfile as noted below.
+Quick build examples (run from `src/docker`)
 
----
-
-## Files in This Project
-
-1. **Dockerfile** – Instructions to build the Docker image for your application.
-2. **compose.yaml** – Defines a Docker Compose service called `server` and maps port 8000.
-3. **requirements.txt** – Python dependencies for the Llama3.3 project.
-
----
-
-## Docker Compose Service
-
-The `compose.yaml` defines:
-
-```yaml
-services:
-  server:
-    build:
-      context: .
-    ports:
-      - 8000:8000
-```
-This will build the Docker image from the ``Dockerfile`` and expose the application on port 8000.
-
-## If you're on Windows...
-You need to replace lines 33-46 in the ``Dockerfile`` with this:
-
-```dockerfile
-# Use Windows Server Core as the base image
-FROM mcr.microsoft.com/windows/servercore:ltsc2022
-
-# Set environment variables to avoid prompts
-ENV RUSTUP_HOME="C:\rustup" \
-    CARGO_HOME="C:\cargo" \
-    PATH="C:\cargo\bin;%PATH%" \
-    RUST_VERSION=stable
-
-# Download and install Rust
-RUN powershell -Command \
-    Invoke-WebRequest -Uri "https://win.rustup.rs/x86_64" -OutFile "rustup-init.exe" ; \
-    Start-Process -FilePath "rustup-init.exe" -ArgumentList "-y --default-toolchain %RUST_VERSION%" -Wait ; \
-    Remove-Item "rustup-init.exe"
-
-# Set the working directory
-WORKDIR /app
-
-# Default command
-CMD ["cmd.exe"]
+Build the CPU runtime image (fastest):
+```powershell
+docker build --target final-cpu -t afb-llm:cpu .
 ```
 
-## Build & Run Docker Image
-Go to your project directory and run this command to build the Docker Image:
-```bash
-docker build -t llama3 .
+Build the GPU runtime image (large; ensure your host has GPU support):
+```powershell
+docker build --build-arg AUTOGPTQ_EXTRA_INDEX=https://huggingface.github.io/autogptq-index/whl/cu118/ --target final-gpu -t afb-llm:gpu .
 ```
-- "llama3" is your project name so just replace this with whatever you named it with earlier...
 
-Now run this command to run the application itself:
-```bash
-docker compose up
+Notes on `AUTOGPTQ_EXTRA_INDEX`
+- If you need prebuilt AutoGPTQ wheels for a specific CUDA version (for example `cu118`), pass the wheel index URL via `--build-arg AUTOGPTQ_EXTRA_INDEX=...` so pip can pull compatible binary wheels during the build.
+- If you don't supply the extra index, the build uses the normal PyPI index and may attempt to compile GPU-specific packages from source (much slower) or skip them if not available.
+
+Run examples
+- Run the CPU image and expose the health server (port 8000):
+```powershell
+docker run --rm -p 8000:8000 afb-llm:cpu
 ```
-This will start the ``server`` service and you can view it on http://localhost:8000
 
-## Publishing Docker Image to Docker Hub
-```bash
-docker login
-
-docker tag llama3 <your-dockerhub-username>/llama3:latest
-
-docker push <your-dockerhub-username>/llama3:latest
+- Run the GPU image (example, requires Docker host GPU support):
+```powershell
+docker run --rm --gpus all -p 8000:8000 afb-llm:gpu
 ```
-Here's a tutorial if this doesn't work: [Tutorial Video](https://www.youtube.com/watch?v=zO0O-EzXYhk)
 
-## Python Dependencies
-Use the following ``requirements.txt`` for your Llama3.3 project:
+Next steps & optional improvements
+- Slim the final images further by removing rust/build-tooling in a later stage or by creating a smaller runtime-only image and copying installed site-packages into it.
+- Change the GPU final image default entrypoint if you prefer to run a different script on container start (for example `quantize_llama_gptq.py`).
+- Add a `docker-compose.yml` with named services for CPU/GPU and a healthcheck.
 
-* ``src/docker/requirements.txt``
-
-## References
-* Docker Compose Reference: https://docs.docker.com/go/compose-spec-reference/
-
-* Awesome Compose Examples: https://github.com/docker/awesome-compose
+If you'd like, I can run a quick CPU build and a smoke run to verify the image build and startup on your machine (note: the GPU build is large and will take longer).
 
