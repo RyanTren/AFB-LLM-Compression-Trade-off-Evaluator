@@ -1,0 +1,16 @@
+# 1) Verify the host NVIDIA driver is installed and working
+nvidia-smi
+
+# 2) Add NVIDIA’s repository for the container toolkit
+distribution=$(. /etc/os-release; echo $ID$VERSION_ID)   # e.g., ubuntu22.04
+curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey \
+  | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+curl -fsSL https://nvidia.github.io/libnvidia-container/$distribution/libnvidia-container.list \
+  | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+
+sudo apt-get update
+sudo apt-get install -y nvidia-container-toolkit
+
+# 3) Configure Docker to use the NVIDIA runtime and restart Docker
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker

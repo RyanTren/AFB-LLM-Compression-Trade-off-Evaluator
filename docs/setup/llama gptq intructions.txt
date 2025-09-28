@@ -1,0 +1,149 @@
+0) SSH in and sanity‑check the VM
+# SSH (from your laptop/desktop)
+ssh p10-t1llmcomp@10.96.50.42
+
+# On the VM, check Docker & GPU
+docker --version
+nvidia-smi
+
+# Check NVIDIA Container Toolkit is wired to Docker
+docker run --rm --gpus all nvidia/cuda:11.8.0-base-ubuntu22.04 nvidia-smi
+
+
+If the last command fails, the VM is missing the NVIDIA Container Toolkit. Ask the admin to install it (along with Docker Engine).
+
+If docker isn’t found, Docker Engine needs to be installed by the admin.
+
+1) Create a workspace and the three files
+mkdir -p ~/llama-gptq && cd ~/llama-gptq
+
+
+Create requirements.txt, Dockerfile, and quantize_llama_gptq.py here.
+
+quickest path is to open each with nano, paste, save:
+
+nano requirements.txt     # paste, save
+nano Dockerfile           # paste, save
+nano quantize_llama_gptq.py  # paste, save
+
+
+small tweak: In quantize_llama_gptq.py, make sure the quantize call reads:
+
+model.quantize(examples, use_triton=False)
+
+2) Build the image
+cd ~/llama-gptq
+docker build -t llama-gptq:0.1 .
+
+3) Prepare model + output directories
+
+Pick one source for the base (unquantized) model:
+
+A) From local disk (preferred if you already synced weights):
+
+ex. our FP16 model lives at: /opt/models/llama3.3
+
+B) From Hugging Face Hub (requires access + token for LLaMA):
+
+You’ll pass -e HUGGINGFACE_HUB_TOKEN=... at run time.
+
+Create an output folder the container can write to:
+
+mkdir -p ~/out
+chmod 777 ~/out    # easiest way to avoid permission problems from inside the container
+
+4) Run the quantizer (choose A or B)
+A) Quantize from a local model directory
+docker run --rm --gpus all \
+  -v /opt/models/llama3.3:/models:ro \
+  -v ~/out:/out \
+  llama-gptq:0.1 \
+  --model /models \
+  --output /out/llama3.3-gptq \
+  --bits 4 --group-size 128 --nsamples 128 --seqlen 512
+
+B) Quantize from Hugging Face Hub (gated models)
+# Avoid putting tokens in shell history (optional, but recommended):
+read -s HF && export HUGGINGFACE_HUB_TOKEN="$HF"
+
+docker run --rm --gpus all \
+  -e HUGGINGFACE_HUB_TOKEN="$HUGGINGFACE_HUB_TOKEN" \
+  -v ~/out:/out \
+  llama-gptq:0.1 \
+  --model meta-llama/Meta-Llama-3-8B \
+  --output /out/llama3-8b-gptq \
+  --bits 4 --group-size 128 --nsamples 128 --seqlen 512
+
+
+quick tips:
+
+If you hit OOM or it’s too slow, try --nsamples 64 and/or --seqlen 256 to reduce calibration cost.
+
+You can run this in the background to survive SSH disconnects:
+
+nohup docker run ... > ~/quantize.log 2>&1 &
+tail -f ~/quantize.log
+
+5) Verify the quantized model loads (inside the same image)
+# Adjust the path to match the output directory name from step 4.
+docker run --rm --gpus all \
+  -v ~/out:/out \
+  --entrypoint python \
+  llama-gptq:0.1 \
+  -c "from auto_gptq import AutoGPTQForCausalLM; from transformers import AutoTokenizer; \
+m=AutoGPTQForCausalLM.from_quantized('/out/llama3.3-gptq', device='cuda:0', use_safetensors=True, use_triton=False); \
+t=AutoTokenizer.from_pretrained('/out/llama3.3-gptq', use_fast=True); print('Loaded OK')"
+
+
+You should see Loaded OK.
+
+6) Use the quantized model in your inference app
+
+In our inference code/container, load the model like this (pointing to the folder you wrote in ~/out):
+
+from auto_gptq import AutoGPTQForCausalLM
+from transformers import AutoTokenizer
+
+model = AutoGPTQForCausalLM.from_quantized(
+    "/path/to/llama3.3-gptq",
+    device="cuda:0",
+    use_safetensors=True,
+    use_triton=False
+)
+tok = AutoTokenizer.from_pretrained("/path/to/llama3.3-gptq", use_fast=True)
+
+
+Mount that folder into your inference container:
+
+docker run --rm --gpus all -p 8000:8000 \
+  -v ~/out/llama3.3-gptq:/models:ro \
+  -e MODEL_PATH=/models \
+  <your-inference-image>
+
+quick fixes
+
+Permission denied writing to /out:
+Ensure chmod 777 ~/out (or run the container with your UID: -u $(id -u):$(id -g)).
+
+“Permission denied (publickey)” cloning repos:
+we already fixed this by adding an SSH key on the VM to GitHub.
+
+CUDA errors or “no kernel image”
+We’ve disabled Triton and avoided newer kernels. If you still see issues, rebuild the container as‑is and keep use_triton=False when loading.
+
+Disk space
+Check space before/after: df -h. 4‑bit GPTQ cuts weight size ~4× vs FP16, but you still need room for both source and output during the run.
+
+(the three commands you’ll run most)
+# Build once
+docker build -t llama-gptq:0.1 ~/llama-gptq
+
+# Quantize (local model example)
+docker run --rm --gpus all -v /opt/models/llama3.3:/models:ro -v ~/out:/out \
+  llama-gptq:0.1 --model /models --output /out/llama3.3-gptq --bits 4 --group-size 128
+
+# Verify
+docker run --rm --gpus all -v ~/out:/out --entrypoint python llama-gptq:0.1 \
+  -c "from auto_gptq import AutoGPTQForCausalLM as M; from transformers import AutoTokenizer as T; \
+M.from_quantized('/out/llama3.3-gptq', device='cuda:0', use_safetensors=True, use_triton=False); \
+T.from_pretrained('/out/llama3.3-gptq'); print('OK')"
