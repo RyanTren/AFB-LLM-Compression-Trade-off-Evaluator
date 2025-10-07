@@ -2,11 +2,21 @@ version: '3.8'
 
 services:
   app:
-    build:
-      context: ../
-      dockerfile: docker/Dockerfile
+    build: .
+    image: lora-runner:latest
+    # Request NVIDIA GPUs for this service (Compose device_requests)
+    device_requests:
+      - driver: nvidia
+        count: all
+        capabilities: ["gpu"]
+    # Mounts - adjust host paths if different
     volumes:
-      - ../scripts:/app/scripts
+      - /home/p10-t1llmcomp/vm-work/lora:/workspace/data
+      - /home/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator:/workspace/repo:ro
+    tty: true
+    stdin_open: true
+    # Keep the container running so you can exec into it
+    command: tail -f /dev/null
     environment:
       - PYTHONUNBUFFERED=1
     ports:
