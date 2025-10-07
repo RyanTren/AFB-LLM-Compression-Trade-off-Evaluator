@@ -1,11 +1,11 @@
-# docker-python-project
+# LoRA LLM Compression Technique Branch
 
 ## Overview
 This project is a Python application packaged with Docker. It includes a set of scripts that implement the core functionality of the application, along with Docker configuration files to facilitate containerization and deployment.
 
 ## Project Structure
 ```
-docker-python-project
+src
 ├── docker
 │   ├── Dockerfile
 │   └── docker-compose.yml
