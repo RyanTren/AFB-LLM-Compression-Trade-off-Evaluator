@@ -1,7 +1,7 @@
 version: "3.9"
 services:
   inference:
-    build: ./docker
+    build: ./
     container_name: llama_inference
     shm_size: "16gb"
     volumes:
