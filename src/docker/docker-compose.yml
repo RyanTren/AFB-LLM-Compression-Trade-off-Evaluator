@@ -2,12 +2,15 @@ version: "3.9"
 services:
   inference:
     build: ./
+    runtime: nvidia
     container_name: llama_inference
     shm_size: "16gb"
     volumes:
       - ..:/app
       - ../models:/models
     environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
       - TRANSFORMERS_CACHE=/models/hf_cache
       - HF_HOME=/models/hf_cache
       - TORCH_CUDA_ARCH_LIST=Maxwell
