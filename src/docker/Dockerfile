@@ -1,17 +1,18 @@
-FROM python:3.9-slim-bullseye
+# Base image with CUDA & PyTorch
+FROM pytorch/pytorch:2.3.0-cuda12.1-cudnn8-runtime
 
-# Set the working directory in the container
+# Install dependencies
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+
+# Ensure bitsandbytes works with CUDA 12+
+ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+
+# Install Python packages
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
 WORKDIR /app
+COPY . .
 
-# Copy the requirements file into the container
-COPY requirements.txt .
-
-# Install system updates and dependencies
-RUN apt-get update && apt-get upgrade -y && apt-get clean && \
-	pip install --no-cache-dir -r requirements.txt
-
-# Copy the application files into the container
-COPY scripts/ ./scripts/
-
-# Specify the command to run the application
-CMD ["python", "./scripts/main.py"]
+# Default command (runs test inference)
+CMD ["python", "scripts/run_inference.py"]
