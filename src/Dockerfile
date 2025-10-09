@@ -1,5 +1,5 @@
 # CPU-only PyTorch base
-FROM pytorch/pytorch:2.3.0-cpu
+FROM pytorch/pytorch:2.3.0
 
 # Basic utilities
 RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
