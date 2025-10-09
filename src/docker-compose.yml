@@ -1,0 +1,13 @@
+version: "3.9"
+
+services:
+  inference:
+    build: ./
+    container_name: llama3_cpu_inference
+    shm_size: "16gb"
+    environment:
+      - TRANSFORMERS_CACHE=/models/hf_cache
+      - HF_HOME=/models/hf_cache
+    volumes:
+      - ./models:/models
+      - ./scripts:/app/scripts
