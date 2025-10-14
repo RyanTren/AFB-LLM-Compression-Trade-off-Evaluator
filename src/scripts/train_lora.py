@@ -77,17 +77,24 @@ def main():
     global_step = 0
     for epoch in range(args.epochs):
         for batch in train_loader:
-            # Move to device handled by Accelerator
-            outputs = model(**{k: batch[k] for k in ["input_ids","attention_mask"]})
-            loss = outputs.loss if hasattr(outputs,'loss') else outputs[0].mean()
+            # ✅ Move batch tensors to same device as model
+            batch = {k: v.to(accelerator.device) for k, v in batch.items()}
+
+            outputs = model(**{k: batch[k] for k in ["input_ids", "attention_mask"]})
+            loss = outputs.loss if hasattr(outputs, "loss") else outputs[0].mean()
             loss = loss / args.gradient_accumulation
+
             accelerator.backward(loss)
+
             if (global_step + 1) % args.gradient_accumulation == 0:
                 optimizer.step()
                 optimizer.zero_grad()
+
             if global_step % 10 == 0:
                 print(f"Epoch {epoch} step {global_step} loss {loss.item() * args.gradient_accumulation:.4f}")
+
             global_step += 1
+
 
     # Save adapters only (PEFT supports saving just adapter weights)
     os.makedirs(args.output_dir, exist_ok=True)
