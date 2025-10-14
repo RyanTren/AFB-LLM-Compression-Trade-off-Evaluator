@@ -81,7 +81,12 @@ def main():
             # ✅ Move batch tensors to same device as model
             batch = {k: v.to(accelerator.device) for k, v in batch.items()}
 
-            outputs = model(**{k: batch[k] for k in ["input_ids", "attention_mask"]})
+            outputs = model(
+                input_ids=batch["input_ids"],
+                attention_mask=batch["attention_mask"],
+               labels=batch["input_ids"]
+            )
+
             loss = outputs.loss if hasattr(outputs, "loss") else outputs[0].mean()
             loss = loss / args.gradient_accumulation
 
