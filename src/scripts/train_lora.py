@@ -46,6 +46,7 @@ def main():
 
     # Use Accelerate with DeepSpeed offload via config (accelerate launch will pick accelerate_config.yaml)
     accelerator = Accelerator()
+    model.to(accelerator.device)
     model = accelerator.prepare(model)
 
     # Simple dataset: replace with your code-generation dataset
