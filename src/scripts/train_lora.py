@@ -46,7 +46,7 @@ def main():
 
     # Use Accelerate with DeepSpeed offload via config (accelerate launch will pick accelerate_config.yaml)
     accelerator = Accelerator()
-    model, = accelerator.prepare(model)
+    model = accelerator.prepare(model)
 
     # Simple dataset: replace with your code-generation dataset
     ds = load_dataset("codeparrot/github-code", split="train[:1%]") if False else load_dataset("json", data_files={"train":"data/code_train.json"}) if os.path.exists("data/code_train.json") else None
