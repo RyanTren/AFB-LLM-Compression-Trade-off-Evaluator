@@ -35,11 +35,11 @@ def main():
     # Prepare LoRA
     lora_config = LoraConfig(
         r=8,
-        lora_alpha=16,
-        target_modules=["q_proj","v_proj","k_proj","o_proj"],  # adapt if model has different module names
+        lora_alpha=32,
+        target_modules=["c_attn"],
+        lora_dropout=0.05,  # ✅ change from "dropout" → "lora_dropout"
         bias="none",
-        task_type="CAUSAL_LM",
-        dropout=0.05
+        task_type="CAUSAL_LM"
     )
     model = get_peft_model(model, lora_config)
     model.print_trainable_parameters()
