@@ -1,15 +1,24 @@
-# CPU-only PyTorch base
-FROM pytorch/pytorch:2.3.0
+# Base (CPU). If you plan to run with GPUs in container later, change to nvidia/cuda runtime base.
+FROM python:3.12-slim
 
-# Basic utilities
-RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+# basics
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y git build-essential wget libsndfile1 && rm -rf /var/lib/apt/lists/*
 
-# Install Python deps
-COPY requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
-
-# App setup
 WORKDIR /app
-COPY . .
+COPY requirements.txt /app/
+RUN pip install --upgrade pip
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
-CMD ["python", "scripts/run_inference.py"]
+# copy project
+COPY . /app
+
+# default command (you can override with docker run)
+CMD ["bash"]
+
+
+# command to run local (build and run interative)
+# docker build -t lora-m40 .
+# docker run --rm -it -v $(pwd):/app lora-m40
+
+# If you later need CUDA in container, use an nvidia/cuda base image with a matching CUDA version and --gpus all at runtime.
