@@ -1,5 +1,5 @@
-pip install huggingface_hub
-huggingface-cli login  # paste your HF token
+# pip install huggingface_hub
+# huggingface-cli login  # paste your HF token
 
 from huggingface_hub import HfApi
 api = HfApi()
