@@ -48,7 +48,7 @@ src
 
 ## ⚙️ Environment Setup
 
-### Option 1: Local (Recommended for school VM)
+### Option 1: Local (Recommended for KSU VM)
 Create a virtual environment to isolate dependencies.
 
 ```bash
@@ -58,7 +58,42 @@ source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 
+# then run this
+accelerate launch --mixed_precision "no" --num_processes 1 scripts/train_lora.py \
+  --model_id gpt2 \
+  --epochs 1 \
+  --batch_size 1 \
+  --gradient_accumulation 4 \
+  --output_dir lora_out
+
 ```
+Once you run the accelerate command, the print statement should follow:
+``Saved LoRA adpters to lora_out``
+
+You will only see this in the ssh terminal on the vm it will show up in the ``/src/lora_out`` path. It will contain the following files:
+
+ ``
+ adapter_model.safetensors  
+ merges.txt               
+ tokenizer.json         
+ vocab.json
+  adapter_config.json  
+  added_tokens.json          special_tokens_map.json  tokenizer_config.json
+``
+This means our LoRA fine-tuning is done and our LoRA adapter is done and we can now run our inference script to load our Fine-tuned GPT-2 LoRA Model, this will generate a code snippet based on our fine-tuned LoRA adapter
+
+- [brief read on why I didn't use QLoRA](src/why_QLoRA_won't_work.md)
+
+After this we will Evaluate/Compare Model Performance from a :
+* Model size reduction
+
+* Training efficiency
+
+* Accuracy / output quality
+
+* Latency vs. baseline GPT-2
+
+We can upload our model to hugging face hub
 
 ### Option 2: Docker (Reproducible)
 
