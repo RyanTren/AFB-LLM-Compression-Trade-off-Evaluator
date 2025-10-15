@@ -58,6 +58,14 @@ source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 
+# this creates Local temporary env vars since we don't have write access
+mkdir -p /tmp/hf_cache
+export HF_HOME=/tmp/hf_cache
+export TRANSFORMERS_CACHE=/tmp/hf_cache
+export HF_HUB_CACHE=/tmp/hf_cache
+export HF_HUB_DISABLE_TELEMETRY=1
+
+
 # then run this
 accelerate launch --mixed_precision "no" --num_processes 1 scripts/train_lora.py \
   --model_id gpt2 \
