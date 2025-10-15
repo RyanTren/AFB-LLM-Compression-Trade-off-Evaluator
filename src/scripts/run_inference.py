@@ -1,21 +1,27 @@
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft import PeftModel
+import torch
 
-# Use your GPT-2 + LoRA adapter
 BASE_MODEL = "gpt2"
-ADAPTER_PATH = "lora_out"
+ADAPTER_PATH = "../lora_out"   # ✅ relative to scripts/ folder
 
 print("🔹 Loading GPT-2 + LoRA adapter...")
-tokenizer = AutoTokenizer.from_pretrained(ADAPTER_PATH)
-model = AutoModelForCausalLM.from_pretrained(BASE_MODEL, torch_dtype=torch.float32)
+
+# Load tokenizer from base model (not the adapter folder)
+tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
+
+# Load base model
+model = AutoModelForCausalLM.from_pretrained(BASE_MODEL)
+
+# Load LoRA weights
 model = PeftModel.from_pretrained(model, ADAPTER_PATH)
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-model = model.to(device)
 model.eval()
 
-prompt = "Write a Python function to check if a number is prime:"
-inputs = tokenizer(prompt, return_tensors="pt").to(device)
-outputs = model.generate(**inputs, max_new_tokens=100)
-print("\n🧠 Output:\n", tokenizer.decode(outputs[0], skip_special_tokens=True))
+# 🔹 Run a quick test
+prompt = "Write a simple Python function that calculates factorial."
+inputs = tokenizer(prompt, return_tensors="pt")
+
+with torch.no_grad():
+    outputs = model.generate(**inputs, max_new_tokens=100)
+print(tokenizer.decode(outputs[0], skip_special_tokens=True))
