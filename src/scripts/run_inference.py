@@ -30,8 +30,17 @@ model = PeftModel.from_pretrained(model, ADAPTER_PATH)
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model.to(device)
 
-prompt = "Write a Python function that reverses a string."
-inputs = tokenizer(prompt, return_tensors="pt").to(device)
+prompts = [
+    "Write a Python function that reverses a string.",
+    "Explain how a neural network learns.",
+    "Generate a short poem about AI and the Air Force."
+]
+for p in prompts:
+    inputs = tokenizer(p, return_tensors="pt").to(device)
+    outputs = model.generate(**inputs, max_new_tokens=100)
+    print(f"\n🔹 Prompt: {p}")
+    print(tokenizer.decode(outputs[0], skip_special_tokens=True))
+
 
 with torch.inference_mode():
     outputs = model.generate(**inputs, max_new_tokens=80)
