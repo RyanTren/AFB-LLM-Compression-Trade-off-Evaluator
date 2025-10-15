@@ -92,6 +92,29 @@ This means our LoRA fine-tuning is done and our LoRA adapter is done and we can 
 
 - [brief read on why I didn't use QLoRA](src/why_QLoRA_won't_work.md)
 
+### Progress as of 10/15/25
+
+* ✅ LoRA training working with PEFT
+* ✅ Model + adapter saved locally
+* ✅ Proper vocab alignment (embedding fixed)
+* ✅ Inference pipeline confirmed
+
+**Screenshot from VM Terminal:**
+![running inference script for LoRA/PEFT Model](image.png)
+
+#### Improvements/Next Steps
+- replace synthetic dataset with a real one like ``openai_humaneval, codeparrot/codecomplex, etc``
+- train for more epochs:
+```bash
+accelerate launch scripts/train_lora.py --epochs 3 --batch_size 2
+```
+- re-run inference
+- explore infrence using hf connection to other open-source llms
+- eval/compare model performance
+- upload our adapter to hf to preserve our LoRA model from our VM
+- potentially try to export for deployment
+
+
 After this we will Evaluate/Compare Model Performance from a :
 * Model size reduction
 
