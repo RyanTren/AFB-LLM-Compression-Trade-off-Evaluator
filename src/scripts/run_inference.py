@@ -16,6 +16,9 @@ tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
 # Load base model
 model = AutoModelForCausalLM.from_pretrained(BASE_MODEL)
 
+# Bug Fix: this ensures same vocab size
+model.resize_token_embeddings(len(tokenizer))
+
 # Load LoRA weights
 model = PeftModel.from_pretrained(model, ADAPTER_PATH)
 
