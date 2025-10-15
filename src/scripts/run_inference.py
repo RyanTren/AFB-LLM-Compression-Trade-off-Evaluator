@@ -1,9 +1,12 @@
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft import PeftModel
 import torch
+import os
 
 BASE_MODEL = "gpt2"
-ADAPTER_PATH = "../lora_out"   # ✅ relative to scripts/ folder
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ADAPTER_PATH = os.path.join(BASE_DIR, "../lora_out")
+ADAPTER_PATH = os.path.abspath(ADAPTER_PATH)
 
 print("🔹 Loading GPT-2 + LoRA adapter...")
 
