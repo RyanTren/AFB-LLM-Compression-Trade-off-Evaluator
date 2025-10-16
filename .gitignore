@@ -1,2 +1,33 @@
-# whatever virtual environment we choose to use :p
-.venv 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# Virtual environments
+venv/
+.env/
+.envrc
+
+# Model outputs
+lora_out*/
+*.pt
+*.bin
+*.safetensors
+
+# Hugging Face / cache directories
+datasets/
+hf_cache/
+.cache/
+~/.cache/
+
+# Checkpoints and temp data
+checkpoints/
+tmp/
+*.tmp
+*.ckpt
+
+# OS / editor files
+.DS_Store
+*.swp
