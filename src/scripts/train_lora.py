@@ -9,6 +9,7 @@ from peft import LoraConfig, get_peft_model
 from datasets import load_dataset
 from accelerate import Accelerator
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 
 def parse_args():
@@ -20,13 +21,12 @@ def parse_args():
     p.add_argument("--gradient_accumulation", type=int, default=8)
     p.add_argument("--max_length", type=int, default=512)
     p.add_argument("--learning_rate", type=float, default=1e-4)
-    p.add_argument(
-        "--dataset",
-        type=str,
-        default="synthetic",
-        choices=["synthetic", "codeparrot", "dolly", "openwebtext"],
-        help="Which dataset to use for LoRA fine-tuning",
-    )
+    p.add_argument("--dataset", type=str, default="synthetic",
+                   choices=["synthetic", "codeparrot", "dolly", "openwebtext"])
+    p.add_argument("--save_every", type=int, default=0,
+                   help="Optional step interval to save intermediate checkpoints (0 = disable)")
+    p.add_argument("--dry_run", action="store_true",
+                   help="Run only a few batches for debugging")
     return p.parse_args()
 
 
@@ -44,7 +44,7 @@ def main():
     model = AutoModelForCausalLM.from_pretrained(args.model_id, torch_dtype=torch.float32)
     model.resize_token_embeddings(len(tokenizer))
 
-    # LoRA config
+    # === LoRA setup ===
     lora_config = LoraConfig(
         r=8,
         lora_alpha=32,
@@ -60,7 +60,7 @@ def main():
     model.to(accelerator.device)
     model = accelerator.prepare(model)
 
-    # === Dataset handling ===
+    # === Dataset loading ===
     if args.dataset == "codeparrot":
         print("📘 Loading CodeParrot (subset 1%)...")
         ds = load_dataset("codeparrot/codeparrot-clean", split="train[:1%]")
@@ -76,21 +76,15 @@ def main():
         ds = load_dataset("yhavinga/openwebtext", split="train[:2%]")
 
     else:
-        print("🧪 No dataset found; creating tiny synthetic dataset for demo.")
+        print("🧪 Using synthetic dataset.")
         from datasets import Dataset
         ds = Dataset.from_list([
             {"text": "# Write a Python function that reverses a string.\n def rev(s): return s[::-1]"},
             {"text": "# Write a Python function that returns Fibonacci sequence.\n def fib(n): a,b=0,1; arr=[]; [arr.append(a) or (a,b:=b,a+b) for _ in range(n)]; return arr"},
         ])
 
-    # === Tokenization ===
     def tokenize(batch):
-        return tokenizer(
-            batch["text"],
-            truncation=True,
-            padding="max_length",
-            max_length=args.max_length,
-        )
+        return tokenizer(batch["text"], truncation=True, padding="max_length", max_length=args.max_length)
 
     ds = ds.map(tokenize, batched=True, remove_columns=[col for col in ds.column_names if col != "text"])
     ds.set_format(type="torch", columns=["input_ids", "attention_mask"])
@@ -108,7 +102,10 @@ def main():
 
     for epoch in range(args.epochs):
         running_loss = 0.0
-        for batch in train_loader:
+        smoothed_loss = None
+
+        progress_bar = tqdm(train_loader, desc=f"Epoch {epoch}", leave=True)
+        for step, batch in enumerate(progress_bar):
             batch = {k: v.to(accelerator.device) for k, v in batch.items()}
             outputs = model(
                 input_ids=batch["input_ids"],
@@ -122,25 +119,41 @@ def main():
             running_loss += loss.item() * args.gradient_accumulation
             total_tokens += batch["input_ids"].numel()
 
+            # EMA (exponential moving average) smoothing
+            if smoothed_loss is None:
+                smoothed_loss = loss.item()
+            else:
+                smoothed_loss = 0.9 * smoothed_loss + 0.1 * loss.item()
+
+            progress_bar.set_postfix({"smoothed_loss": f"{smoothed_loss:.4f}"})
+
             if (global_step + 1) % args.gradient_accumulation == 0:
                 optimizer.step()
                 optimizer.zero_grad()
 
-            if global_step % 10 == 0:
-                print(f"Epoch {epoch} | Step {global_step} | Loss: {loss.item() * args.gradient_accumulation:.4f}")
+            if args.save_every and global_step > 0 and global_step % args.save_every == 0:
+                ckpt_dir = os.path.join(args.output_dir, f"checkpoint_step{global_step}")
+                os.makedirs(ckpt_dir, exist_ok=True)
+                model.save_pretrained(ckpt_dir)
+                print(f"💾 Saved intermediate checkpoint: {ckpt_dir}")
 
             global_step += 1
+            if args.dry_run and step > 200:
+                print("🧩 Dry-run mode active — stopping early.")
+                break
 
         avg_loss = running_loss / len(train_loader)
         epoch_losses.append(avg_loss)
         metrics_log.append({"epoch": epoch, "avg_loss": avg_loss})
         print(f"✅ Epoch {epoch} complete | Avg loss: {avg_loss:.4f}")
 
-    total_time = time.time() - start_time
+        # Save checkpoint after each epoch
+        ckpt_dir = os.path.join(args.output_dir, f"checkpoint_epoch{epoch}")
+        os.makedirs(ckpt_dir, exist_ok=True)
+        model.save_pretrained(ckpt_dir)
+        print(f"💾 Epoch {epoch} checkpoint saved to {ckpt_dir}")
 
-    os.makedirs(args.output_dir, exist_ok=True)
-    model.save_pretrained(args.output_dir)
-    tokenizer.save_pretrained(args.output_dir)
+    total_time = time.time() - start_time
 
     # === Metrics export ===
     metrics = {
@@ -160,7 +173,6 @@ def main():
     metrics_path = os.path.join(args.output_dir, f"metrics_{timestamp}.json")
     with open(metrics_path, "w") as f:
         json.dump(metrics, f, indent=2)
-
     print(f"📊 Metrics saved to: {metrics_path}")
 
     # === Plot loss curve ===
@@ -174,6 +186,10 @@ def main():
     plt.savefig(plot_path)
     print(f"📈 Loss plot saved to: {plot_path}")
 
+    # Final save
+    os.makedirs(args.output_dir, exist_ok=True)
+    model.save_pretrained(args.output_dir)
+    tokenizer.save_pretrained(args.output_dir)
     print(f"\n✅ Training complete! LoRA adapters + tokenizer saved to: {args.output_dir}")
 
 
