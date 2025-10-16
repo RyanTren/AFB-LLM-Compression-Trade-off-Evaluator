@@ -66,13 +66,14 @@ export HF_HUB_CACHE=/tmp/hf_cache
 export HF_HUB_DISABLE_TELEMETRY=1
 
 
-# then run this
-accelerate launch --mixed_precision "no" --num_processes 1 scripts/train_lora.py \
+# then run this, you can experiment with epochs and batch_size
+accelerate launch --mixed_precision "no" scripts/train_lora.py \
   --model_id gpt2 \
-  --epochs 1 \
-  --batch_size 1 \
+  --dataset codeparrot \
+  --epochs 3 \
+  --batch_size 2 \
   --gradient_accumulation 4 \
-  --output_dir lora_out
+  --output_dir lora_out_code
 
 ```
 Once you run the accelerate command, the print statement should follow:
@@ -100,13 +101,21 @@ This means our LoRA fine-tuning is done and our LoRA adapter is done and we can 
 * ✅ Inference pipeline confirmed
 
 **Screenshot from VM Terminal:**
-![running inference script for LoRA/PEFT Model](image.png)
+![running inference script for LoRA/PEFT Model (codeparrot dataset not working in this test)](image.png)
+![ss of codeparrot training ](image-1.png)
 
 #### Improvements/Next Steps
 - replace synthetic dataset with a real one like ``openai_humaneval, codeparrot/codecomplex, etc``
 - train for more epochs:
 ```bash
-accelerate launch scripts/train_lora.py --epochs 3 --batch_size 2
+accelerate launch --mixed_precision "no" scripts/train_lora.py \
+  --model_id gpt2 \
+  --dataset codeparrot \
+  --epochs 3 \
+  --batch_size 2 \
+  --gradient_accumulation 4 \
+  --output_dir lora_out_code
+
 ```
 - re-run inference
 - explore infrence using hf connection to other open-source llms
