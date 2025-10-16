@@ -1,4 +1,6 @@
 import os
+os.environ.setdefault("MPLCONFIGDIR", "/tmp/mplconfig")  # avoid matplotlib permission issues
+
 import argparse
 import time
 import json
@@ -34,6 +36,9 @@ def main():
     args = parse_args()
     start_time = time.time()
 
+    accelerator = Accelerator()
+    is_main = accelerator.is_main_process
+
     print(f"🔹 Using model: {args.model_id}")
     print(f"🔹 Dataset: {args.dataset}")
 
@@ -56,27 +61,26 @@ def main():
     model = get_peft_model(model, lora_config)
     model.print_trainable_parameters()
 
-    accelerator = Accelerator()
     model.to(accelerator.device)
     model = accelerator.prepare(model)
 
     # === Dataset loading ===
     if args.dataset == "codeparrot":
-        print("📘 Loading CodeParrot (subset 1%)...")
+        if is_main: print("📘 Loading CodeParrot (subset 1%)...")
         ds = load_dataset("codeparrot/codeparrot-clean", split="train[:1%]")
         ds = ds.rename_column("content", "text")
 
     elif args.dataset == "dolly":
-        print("💬 Loading Dolly 15k...")
+        if is_main: print("💬 Loading Dolly 15k...")
         ds = load_dataset("databricks/databricks-dolly-15k", split="train")
         ds = ds.map(lambda ex: {"text": f"### Instruction:\n{ex['instruction']}\n### Response:\n{ex['response']}"})
 
     elif args.dataset == "openwebtext":
-        print("🌐 Loading OpenWebText (subset 2%)...")
+        if is_main: print("🌐 Loading OpenWebText (subset 2%)...")
         ds = load_dataset("yhavinga/openwebtext", split="train[:2%]")
 
     else:
-        print("🧪 Using synthetic dataset.")
+        if is_main: print("🧪 Using synthetic dataset.")
         from datasets import Dataset
         ds = Dataset.from_list([
             {"text": "# Write a Python function that reverses a string.\n def rev(s): return s[::-1]"},
@@ -98,13 +102,17 @@ def main():
     epoch_losses = []
     metrics_log = []
 
-    print("🚀 Starting LoRA fine-tuning...")
+    # Helper: use tqdm only on main process
+    def get_progress_iterable(loader, desc):
+        return tqdm(loader, desc=desc, leave=True) if is_main else loader
+
+    if is_main: print("🚀 Starting LoRA fine-tuning...")
 
     for epoch in range(args.epochs):
         running_loss = 0.0
         smoothed_loss = None
+        progress_bar = get_progress_iterable(train_loader, f"Epoch {epoch}")
 
-        progress_bar = tqdm(train_loader, desc=f"Epoch {epoch}", leave=True)
         for step, batch in enumerate(progress_bar):
             batch = {k: v.to(accelerator.device) for k, v in batch.items()}
             outputs = model(
@@ -119,39 +127,43 @@ def main():
             running_loss += loss.item() * args.gradient_accumulation
             total_tokens += batch["input_ids"].numel()
 
-            # EMA (exponential moving average) smoothing
-            if smoothed_loss is None:
-                smoothed_loss = loss.item()
-            else:
-                smoothed_loss = 0.9 * smoothed_loss + 0.1 * loss.item()
-
-            progress_bar.set_postfix({"smoothed_loss": f"{smoothed_loss:.4f}"})
+            # EMA smoothing for live loss
+            smoothed_loss = loss.item() if smoothed_loss is None else 0.9 * smoothed_loss + 0.1 * loss.item()
+            if is_main:
+                progress_bar.set_postfix({"smoothed_loss": f"{smoothed_loss:.4f}"})
 
             if (global_step + 1) % args.gradient_accumulation == 0:
                 optimizer.step()
                 optimizer.zero_grad()
 
-            if args.save_every and global_step > 0 and global_step % args.save_every == 0:
+            if args.save_every and global_step > 0 and global_step % args.save_every == 0 and is_main:
                 ckpt_dir = os.path.join(args.output_dir, f"checkpoint_step{global_step}")
                 os.makedirs(ckpt_dir, exist_ok=True)
-                model.save_pretrained(ckpt_dir)
+                unwrapped = accelerator.unwrap_model(model)
+                unwrapped.save_pretrained(ckpt_dir)
+                tokenizer.save_pretrained(ckpt_dir)
                 print(f"💾 Saved intermediate checkpoint: {ckpt_dir}")
 
             global_step += 1
             if args.dry_run and step > 200:
-                print("🧩 Dry-run mode active — stopping early.")
+                if is_main: print("🧩 Dry-run mode active — stopping early.")
                 break
 
         avg_loss = running_loss / len(train_loader)
         epoch_losses.append(avg_loss)
         metrics_log.append({"epoch": epoch, "avg_loss": avg_loss})
-        print(f"✅ Epoch {epoch} complete | Avg loss: {avg_loss:.4f}")
+        if is_main:
+            print(f"✅ Epoch {epoch} complete | Avg loss: {avg_loss:.4f}")
 
-        # Save checkpoint after each epoch
-        ckpt_dir = os.path.join(args.output_dir, f"checkpoint_epoch{epoch}")
-        os.makedirs(ckpt_dir, exist_ok=True)
-        model.save_pretrained(ckpt_dir)
-        print(f"💾 Epoch {epoch} checkpoint saved to {ckpt_dir}")
+        # Epoch checkpoint (main process only)
+        accelerator.wait_for_everyone()
+        if is_main:
+            ckpt_dir = os.path.join(args.output_dir, f"checkpoint_epoch{epoch}")
+            os.makedirs(ckpt_dir, exist_ok=True)
+            unwrapped = accelerator.unwrap_model(model)
+            unwrapped.save_pretrained(ckpt_dir)
+            tokenizer.save_pretrained(ckpt_dir)
+            print(f"💾 Epoch {epoch} checkpoint saved to {ckpt_dir}")
 
     total_time = time.time() - start_time
 
@@ -171,26 +183,30 @@ def main():
 
     timestamp = int(time.time())
     metrics_path = os.path.join(args.output_dir, f"metrics_{timestamp}.json")
-    with open(metrics_path, "w") as f:
-        json.dump(metrics, f, indent=2)
-    print(f"📊 Metrics saved to: {metrics_path}")
 
-    # === Plot loss curve ===
-    plt.figure(figsize=(8, 5))
-    plt.plot(range(len(epoch_losses)), epoch_losses, marker="o", color="blue", linewidth=2)
-    plt.title("Training Loss Curve")
-    plt.xlabel("Epoch")
-    plt.ylabel("Average Loss")
-    plt.grid(True)
-    plot_path = os.path.join(args.output_dir, f"loss_plot_{timestamp}.png")
-    plt.savefig(plot_path)
-    print(f"📈 Loss plot saved to: {plot_path}")
+    accelerator.wait_for_everyone()
+    if is_main:
+        os.makedirs(args.output_dir, exist_ok=True)
+        with open(metrics_path, "w") as f:
+            json.dump(metrics, f, indent=2)
+        print(f"📊 Metrics saved to: {metrics_path}")
 
-    # Final save
-    os.makedirs(args.output_dir, exist_ok=True)
-    model.save_pretrained(args.output_dir)
-    tokenizer.save_pretrained(args.output_dir)
-    print(f"\n✅ Training complete! LoRA adapters + tokenizer saved to: {args.output_dir}")
+        # === Plot loss curve ===
+        plt.figure(figsize=(8, 5))
+        plt.plot(range(len(epoch_losses)), epoch_losses, marker="o", color="blue", linewidth=2)
+        plt.title("Training Loss Curve")
+        plt.xlabel("Epoch")
+        plt.ylabel("Average Loss")
+        plt.grid(True)
+        plot_path = os.path.join(args.output_dir, f"loss_plot_{timestamp}.png")
+        plt.savefig(plot_path)
+        print(f"📈 Loss plot saved to: {plot_path}")
+
+        # Final save
+        unwrapped = accelerator.unwrap_model(model)
+        unwrapped.save_pretrained(args.output_dir)
+        tokenizer.save_pretrained(args.output_dir)
+        print(f"\n✅ Training complete! LoRA adapters + tokenizer saved to: {args.output_dir}")
 
 
 if __name__ == "__main__":
