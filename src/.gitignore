@@ -1,0 +1,6 @@
+venv/
+__pycache__/
+*.bin
+lora_out_codeparrot/checkpoint_*
+lora_out_codeparrot/pytorch_model*
+lora_out_codeparrot/adapter_model.safetensors

@@ -1,0 +1,14 @@
+{
+  "model": "gpt2",
+  "dataset": "codeparrot",
+  "epochs": 1,
+  "batch_size": 2,
+  "gradient_accumulation": 4,
+  "learning_rate": 0.0001,
+  "total_steps": 26807,
+  "total_tokens": 13725184,
+  "avg_loss_per_epoch": [
+    1.9380100184660576
+  ],
+  "train_time_sec": 8907.676412582397
+}
