@@ -66,34 +66,50 @@ def main():
 
     # === Dataset loading ===
     if args.dataset == "codeparrot":
-        if is_main: print("📘 Loading CodeParrot (subset 1%)...")
-        ds = load_dataset("codeparrot/codeparrot-clean", split="train[:1%]")
-        ds = ds.rename_column("content", "text")
+        print("📘 Streaming CodeParrot dataset (progressive load)...")
+        ds_stream = load_dataset("codeparrot/codeparrot-clean", split="train", streaming=True)
+    
+    # Use --dry_run in command to convert stream into limited iterable for test/debug mode
+    if args.dry_run:
+        ds_stream = ds_stream.take(500)  # only 500 samples for testing
 
-    elif args.dataset == "dolly":
-        if is_main: print("💬 Loading Dolly 15k...")
-        ds = load_dataset("databricks/databricks-dolly-15k", split="train")
-        ds = ds.map(lambda ex: {"text": f"### Instruction:\n{ex['instruction']}\n### Response:\n{ex['response']}"})
+    # Simple text extraction and tokenization pipeline
+    def preprocess(batch):
+        text = batch.get("content", "")
+        return tokenizer(text, truncation=True, padding="max_length", max_length=args.max_length)
 
-    elif args.dataset == "openwebtext":
-        if is_main: print("🌐 Loading OpenWebText (subset 2%)...")
-        ds = load_dataset("yhavinga/openwebtext", split="train[:2%]")
+    # Apply lazy map (on the fly tokenization)
+    ds_stream = ds_stream.map(preprocess)
 
-    else:
-        if is_main: print("🧪 Using synthetic dataset.")
-        from datasets import Dataset
-        ds = Dataset.from_list([
-            {"text": "# Write a Python function that reverses a string.\n def rev(s): return s[::-1]"},
-            {"text": "# Write a Python function that returns Fibonacci sequence.\n def fib(n): a,b=0,1; arr=[]; [arr.append(a) or (a,b:=b,a+b) for _ in range(n)]; return arr"},
-        ])
+    # Wrap in an iterable-style DataLoader
+    from torch.utils.data import IterableDataset
 
-    def tokenize(batch):
-        return tokenizer(batch["text"], truncation=True, padding="max_length", max_length=args.max_length)
+    class StreamWrapper(IterableDataset):
+        def __iter__(self):
+            for sample in ds_stream:
+                yield {k: torch.tensor(v) for k, v in sample.items() if k in ["input_ids", "attention_mask"]}
 
-    ds = ds.map(tokenize, batched=True, remove_columns=[col for col in ds.column_names if col != "text"])
-    ds.set_format(type="torch", columns=["input_ids", "attention_mask"])
+    train_loader = DataLoader(StreamWrapper(), batch_size=args.batch_size)
 
-    train_loader = DataLoader(ds, batch_size=args.batch_size, shuffle=True)
+
+    # elif args.dataset == "dolly":
+    #     if is_main: print("💬 Loading Dolly 15k...")
+    #     ds = load_dataset("databricks/databricks-dolly-15k", split="train")
+    #     ds = ds.map(lambda ex: {"text": f"### Instruction:\n{ex['instruction']}\n### Response:\n{ex['response']}"})
+
+    # elif args.dataset == "openwebtext":
+    #     if is_main: print("🌐 Loading OpenWebText (subset 2%)...")
+    #     ds = load_dataset("yhavinga/openwebtext", split="train[:2%]")
+
+    # else:
+    #     if is_main: print("🧪 Using synthetic dataset.")
+    #     from datasets import Dataset
+    #     ds = Dataset.from_list([
+    #         {"text": "# Write a Python function that reverses a string.\n def rev(s): return s[::-1]"},
+    #         {"text": "# Write a Python function that returns Fibonacci sequence.\n def fib(n): a,b=0,1; arr=[]; [arr.append(a) or (a,b:=b,a+b) for _ in range(n)]; return arr"},
+    #     ])
+
+    
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate)
 
     model.train()
