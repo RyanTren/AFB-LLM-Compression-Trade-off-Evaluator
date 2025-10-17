@@ -144,4 +144,133 @@ Total 14 (delta 2), reused 0 (delta 0), pack-reused 0
 remote: Resolving deltas: 100% (2/2), completed with 2 local objects.
 To github.com:RyanTren/AFB-LLM-Compression-Trade-off-Evaluator.git
    b555ccb..00df265  lora -> lora
+(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ ^C
+(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ python scripts/run_inference.py
+/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src/venv/lib/python3.12/site-packages/transformers/utils/hub.py:110: FutureWarning: Using `TRANSFORMERS_CACHE` is deprecated and will be removed in v5 of Transformers. Use `HF_HOME` instead.
+  warnings.warn(
+🔹 Loading GPT-2 + LoRA adapter...
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+Setting `pad_token_id` to `eos_token_id`:50256 for open-end generation.
+
+🔹 Prompt: Write a Python function that reverses a string.
+Write a Python function that reverses a string.
+
+import os import time import sys import time.sleep import time.sleep.sleep_time import time.sleep.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time
+Setting `pad_token_id` to `eos_token_id`:50256 for open-end generation.
+
+🔹 Prompt: Explain how a neural network learns.
+Explain how a neural network learns.
+
+The first step is to understand how the network learns. The second step is to understand how the network learns.
+
+The first step is to understand how the network learns.
+
+The second step is to understand how the network learns.
+
+The third step is to understand how the network learns.
+
+The third step is to understand how the network learns.
+
+The fourth step is to understand how the network learns.
+
+The fourth step is to understand how the network
+Setting `pad_token_id` to `eos_token_id`:50256 for open-end generation.
+
+🔹 Prompt: Generate a short poem about AI and the Air Force.
+Generate a short poem about AI and the Air Force.
+
+The Air Force is a major military organization. It has a large number of officers and enlisted personnel. It has a large number of officers and enlisted personnel. It has a large number of officers and enlisted personnel. It has a large number of officers and enlisted personnel. It has a large number of officers and enlisted personnel. It has a large number of officers and enlisted personnel. It has a large number of officers and enlisted personnel. It has a large number of officers and enlisted personnel. It
+Setting `pad_token_id` to `eos_token_id`:50256 for open-end generation.
+
+🔹 Result:
+Generate a short poem about AI and the Air Force.
+
+The Air Force is a major military organization. It has a large number of officers and enlisted personnel. It has a large number of officers and enlisted personnel. It has a large number of officers and enlisted personnel. It has a large number of officers and enlisted personnel. It has a large number of officers and enlisted personnel. It has a large number of officers and enlisted personnel. It has a
+(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ git fetch
+^C
+(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ git fetch
+remote: Enumerating objects: 15, done.
+remote: Counting objects: 100% (15/15), done.
+remote: Compressing objects: 100% (6/6), done.
+remote: Total 10 (delta 7), reused 5 (delta 4), pack-reused 0 (from 0)
+Unpacking objects: 100% (10/10), 4.28 KiB | 1.43 MiB/s, done.
+From github.com:RyanTren/AFB-LLM-Compression-Trade-off-Evaluator
+   00df265..1ba43cc  lora       -> origin/lora
+(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ git pull
+Updating 00df265..1ba43cc
+Fast-forward
+ src/lora_out_codeparrot/README.md | 147 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/scripts/run_inference.py      |   2 +-
+ 2 files changed, 148 insertions(+), 1 deletion(-)
+ create mode 100644 src/lora_out_codeparrot/README.md
+(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ python scripts/run_inference.py
+/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src/venv/lib/python3.12/site-packages/transformers/utils/hub.py:110: FutureWarning: Using `TRANSFORMERS_CACHE` is deprecated and will be removed in v5 of Transformers. Use `HF_HOME` instead.
+  warnings.warn(
+🔹 Loading GPT-2 + LoRA adapter...
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+Setting `pad_token_id` to `eos_token_id`:50256 for open-end generation.
+
+🔹 Prompt: Write a Python function that reverses a string.
+Write a Python function that reverses a string.
+
+import os
+import re
+import re
+import re.compile
+import re.log
+import re.log.import_function
+import re.log.import_string
+import re.log.import_string.from_string
+import re.log.import_string.from_string.from_string
+import re.log.import_string.from_string.from_string.from_string.from_string.from_string.from
+Setting `pad_token_id` to `eos_token_id`:50256 for open-end generation.
+
+🔹 Prompt: Explain how a neural network learns.
+Explain how a neural network learns.
+
+import os
+import re
+import re
+import re.compile
+import re.log
+import re.log.import_module
+import re.log.import_string
+import re.log.import_string.from_string
+import re.log.import_string.from_string.from_string
+import re.log.import_string.from_string.from_string.from_string.from_string.from_string.from
+Setting `pad_token_id` to `eos_token_id`:50256 for open-end generation.
+
+🔹 Prompt: Generate a short poem about AI and the Air Force.
+Generate a short poem about AI and the Air Force.
+
+"""
+
+from __future__ import unicode_literals
+
+import os
+import re
+import re.compile
+import re.log
+import re.version
+import re.version.extensions
+import re.version.extensions.extensions.extension_types
+import re.version.extensions.extensions.extension_types.extension_types.extension_types.extension_types.extension_types.ext
+Setting `pad_token_id` to `eos_token_id`:50256 for open-end generation.
+
+🔹 Result:
+Generate a short poem about AI and the Air Force.
+
+"""
+
+from __future__ import unicode_literals
+
+import os
+import re
+import re.compile
+import re.log
+import re.version
+import re.version.extensions
+import re.version.extensions.extensions.extension_types
+import re.version.extensions.extensions.extension_types.ext
+
 ```
