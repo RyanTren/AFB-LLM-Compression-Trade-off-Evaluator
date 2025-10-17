@@ -10,7 +10,7 @@ os.environ["HF_HUB_CACHE"] = "/tmp/hf_cache"
 os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
 
 BASE_MODEL = "gpt2"
-ADAPTER_PATH = "lora_out"
+ADAPTER_PATH = "lora_out_codeparrot"
 
 print("🔹 Loading GPT-2 + LoRA adapter...")
 
