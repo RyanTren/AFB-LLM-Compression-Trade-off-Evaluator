@@ -66,16 +66,23 @@ export HF_HUB_CACHE=/tmp/hf_cache
 export HF_HUB_DISABLE_TELEMETRY=1
 
 
-# then run this, you can experiment with epochs and batch_size
-accelerate launch --mixed_precision "no" scripts/train_lora.py \
+# then run this test command, you can experiment with epochs and batch_size once and other flags once this test command compiles
+accelerate launch --mixed_precision "fp16" scripts/train_lora.py \
   --model_id gpt2 \
-  --dataset codeparrot \
-  --epochs 3 \
-  --batch_size 2 \
-  --gradient_accumulation 4 \
-  --output_dir lora_out_code
-
+  --dataset synthetic \
+  --epochs 1 \
+  --batch_size 1 \
+  --gradient_accumulation 2 \
+  --max_length 256 \
+  --save_every 100 \
+  --dry_run \
+  --output_dir lora_out_test
 ```
+
+This is what the expected output is after running the test command:
+![Test Command Run in VM SS](image.png)
+
+
 Once you run the accelerate command, the print statement should follow:
 ``Saved LoRA adpters to lora_out``
 

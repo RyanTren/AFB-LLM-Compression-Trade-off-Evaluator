@@ -77,9 +77,12 @@ accelerate launch --mixed_precision "fp16" scripts/train_lora.py \
   --save_every 100 \
   --dry_run \
   --output_dir lora_out_test
-
-
 ```
+
+This is what the expected output is after running the test command:
+![Test Command Run in VM SS](image.png)
+
+
 Once you run the accelerate command, the print statement should follow:
 ``Saved LoRA adpters to lora_out``
 
