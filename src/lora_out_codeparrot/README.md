@@ -274,3 +274,28 @@ import re.version.extensions.extensions.extension_types
 import re.version.extensions.extensions.extension_types.ext
 
 ```
+
+## Training Run 2
+
+Some improvement logs here:
+``train_lora.py``
+* uses CodeParrot in streaming mode (no full dataset in RAM)
+* trains efficiently with LoRA + FP16
+* saves periodic checkpoints
+* will handle multi-hour runs without memory leaks
+
+``Launch Command``
+```bash
+accelerate launch --mixed_precision "fp16" --num_processes 1 scripts/train_lora.py \
+  --model_id gpt2 \
+  --dataset codeparrot \
+  --epochs 1 \
+  --batch_size 2 \
+  --gradient_accumulation 8 \
+  --max_length 512 \
+  --learning_rate 1e-4 \
+  --save_every 5000 \
+  --output_dir lora_out_codegen
+```
+
+### Results

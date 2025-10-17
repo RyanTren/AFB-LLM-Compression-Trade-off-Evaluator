@@ -11,7 +11,7 @@ venv/
 .envrc
 
 # Model outputs
-lora_out*/
+lora_out/
 *.pt
 *.bin
 *.safetensors
