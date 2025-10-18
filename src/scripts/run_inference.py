@@ -10,7 +10,7 @@ os.environ["HF_HUB_CACHE"] = "/tmp/hf_cache"
 os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
 
 BASE_MODEL = "gpt2"
-ADAPTER_PATH = "lora_out_codegen_final"
+ADAPTER_PATH = "lora_out_codegen/checkpoint-35000"
 
 print("🔹 Loading GPT-2 + LoRA adapter...")
 
@@ -25,6 +25,7 @@ model.resize_token_embeddings(len(tokenizer))  # ✅ critical fix
 
 # Now safely load LoRA weights
 model = PeftModel.from_pretrained(model, ADAPTER_PATH)
+print(model.peft_config)
 
 # Send model to CUDA if available
 device = "cuda" if torch.cuda.is_available() else "cpu"
