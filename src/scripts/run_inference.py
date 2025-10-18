@@ -12,15 +12,16 @@ os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
 
 # --- Configuration ---
 BASE_MODEL = "gpt2"
-ADAPTER_PATH = "lora_out_codegen_final"
+ADAPTER_PATH = "lora_out_clean"
 PROMPTS_PATH = "../src/data/code_prompts.json"
 MAX_NEW_TOKENS = 128
 TEMPERATURE = 0.7
 TOP_P = 0.95
 TOP_K = 50
+REPETITION_PENALTY = 1.2
 
-# Specify category to generate (e.g., "string_algorithms", "math_algorithms", "all")
 CATEGORY = "string_algorithms"
+NUM_FEWSHOT = 2  # number of examples to prepend
 
 # --- Device setup ---
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -31,16 +32,16 @@ tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL, use_fast=True)
 if tokenizer.pad_token is None:
     tokenizer.add_special_tokens({"pad_token": "<|pad|>"})
 
-# --- Load base model and LoRA adapter ---
+# --- Load base model + LoRA adapter ---
 print(f"🔹 Loading GPT-2 + LoRA adapter from: {ADAPTER_PATH}")
-model = AutoModelForCausalLM.from_pretrained(BASE_MODEL, dtype=torch.float32)
+model = AutoModelForCausalLM.from_pretrained(BASE_MODEL, torch_dtype=torch.float32)
 model.resize_token_embeddings(len(tokenizer))
 model = PeftModel.from_pretrained(model, ADAPTER_PATH)
 model.to(device)
 model.eval()
 print("✅ Model loaded successfully.")
 
-# --- Load prompts from JSON ---
+# --- Load prompts ---
 if os.path.exists(PROMPTS_PATH):
     with open(PROMPTS_PATH, "r") as f:
         prompt_data = json.load(f)
@@ -63,29 +64,47 @@ else:
 
 print(f"🧠 Loaded {len(prompts)} prompts for category '{CATEGORY}'.")
 
+# --- Few-shot examples for prepending ---
+few_shot_examples = [
+    "# Task: Reverse a string\n# Solution:\ndef reverse_string(s):\n    return s[::-1]\n",
+    "# Task: Check if a string is palindrome\n# Solution:\ndef is_palindrome(s):\n    return s == s[::-1]\n"
+]
+
 # --- Generation settings ---
 gen_kwargs = dict(
     max_new_tokens=MAX_NEW_TOKENS,
     temperature=TEMPERATURE,
     top_p=TOP_P,
     top_k=TOP_K,
+    repetition_penalty=REPETITION_PENALTY,
     do_sample=True,
     eos_token_id=tokenizer.eos_token_id,
 )
 
 # --- Run inference ---
 for i, prompt in enumerate(prompts):
-    formatted_prompt = f"# Task: {prompt}\n# Solution:\n"
+    # Construct few-shot prompt
+    few_shot_prompt = "".join(few_shot_examples[:NUM_FEWSHOT])
+    formatted_prompt = f"{few_shot_prompt}# Task: {prompt}\n# Solution:\n"
+
     inputs = tokenizer(formatted_prompt, return_tensors="pt").to(device)
-    
+
     with torch.inference_mode():
-        outputs = model.generate(**inputs, **gen_kwargs)
-    
+        outputs = model.generate(
+            **inputs,
+            **gen_kwargs,
+            pad_token_id=tokenizer.pad_token_id
+        )
+
     result = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    
+
+    # Remove the prompt + few-shot examples from the output for clarity
+    if result.startswith(formatted_prompt):
+        result = result[len(formatted_prompt):]
+
     print("\n" + "="*80)
     print(f"📝 Prompt {i+1}: {prompt}")
     print("-"*80)
-    print(result)
+    print(result.strip())
 
 print("\n✅ Inference complete!")
