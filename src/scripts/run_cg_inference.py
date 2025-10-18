@@ -1,63 +1,82 @@
 import os
-import json
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
+import json
+from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
 from peft import PeftModel
 
-# ==== CONFIGURATION ====
-BASE_MODEL = "gpt2"  # or "codeparrot/codeparrot-small"
-LORA_DIR = "lora_out_codegen_final"  # folder from your LoRA fine-tuning
-PROMPTS_FILE = "data/code_prompts.json"  # <-- updated path
-OUTPUT_FILE = "results/inference_outputs.json"
-MAX_NEW_TOKENS = 150
+# --- CONFIG ---
+BASE_MODEL = "gpt2"
+LORA_DIR = "lora_out_codegen_final"
+PROMPTS_PATH = "data/code_prompts.json"
+MAX_NEW_TOKENS = 256
+TEMPERATURE = 0.8
+TOP_P = 0.95
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-# ==== SETUP ====
-device = "cuda" if torch.cuda.is_available() else "cpu"
-print(f"🔹 Using device: {device}")
-
+# --- SETUP ---
+print(f"🔹 Using device: {DEVICE}")
 print(f"🔹 Loading base model: {BASE_MODEL}")
-tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
-model = AutoModelForCausalLM.from_pretrained(BASE_MODEL)
-
 print(f"🔹 Loading LoRA adapters from: {LORA_DIR}")
+
+# Load tokenizer
+tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL, use_fast=True)
+if tokenizer.pad_token is None:
+    tokenizer.add_special_tokens({"pad_token": "<|pad|>"})
+
+# Load base model
+model = AutoModelForCausalLM.from_pretrained(BASE_MODEL, torch_dtype=torch.float32)
+model.resize_token_embeddings(len(tokenizer))
+
+# --- Handle vocab size mismatch automatically ---
+try:
+    adapter_config = AutoConfig.from_pretrained(LORA_DIR)
+    expected_vocab_size = getattr(adapter_config, "vocab_size", None)
+
+    current_vocab_size = model.get_input_embeddings().weight.shape[0]
+    if expected_vocab_size and expected_vocab_size != current_vocab_size:
+        print(f"⚠️ Resizing base model embeddings: {current_vocab_size} → {expected_vocab_size}")
+        model.resize_token_embeddings(expected_vocab_size)
+except Exception as e:
+    print(f"ℹ️ Skipping adapter config check (no vocab info found): {e}")
+
+# --- Load LoRA adapters ---
 model = PeftModel.from_pretrained(model, LORA_DIR)
-model.to(device)
+model.to(DEVICE)
 model.eval()
 
-os.makedirs("results", exist_ok=True)
+# --- Load prompts ---
+if os.path.exists(PROMPTS_PATH):
+    with open(PROMPTS_PATH, "r") as f:
+        prompts = json.load(f)
+else:
+    print(f"⚠️ Prompt file not found at {PROMPTS_PATH}, using default.")
+    prompts = [
+        "Write a Python function that reverses a string.",
+        "Implement a Fibonacci sequence generator in Python.",
+    ]
 
-# ==== LOAD PROMPTS ====
-PROMPTS_PATH = os.path.join(os.path.dirname(__file__), "..", PROMPTS_FILE)
-PROMPTS_PATH = os.path.abspath(PROMPTS_PATH)
+print(f"🧠 Loaded {len(prompts)} code prompts.")
 
-print(f"🔹 Loading prompts from: {PROMPTS_PATH}")
-with open(PROMPTS_PATH, "r") as f:
-    prompt_groups = json.load(f)
+# --- Generate ---
+for i, prompt in enumerate(prompts):
+    print("\n" + "=" * 80)
+    print(f"📝 Prompt {i+1}: {prompt}")
+    print("-" * 80)
 
-outputs = {}
+    inputs = tokenizer(prompt, return_tensors="pt").to(DEVICE)
 
-# ==== GENERATION LOOP ====
-for group, prompts in prompt_groups.items():
-    print(f"\n🧩 Generating group: {group} ({len(prompts)} prompts)")
-    outputs[group] = []
+    with torch.no_grad():
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=MAX_NEW_TOKENS,
+            temperature=TEMPERATURE,
+            top_p=TOP_P,
+            do_sample=True,
+            pad_token_id=tokenizer.pad_token_id,
+            eos_token_id=tokenizer.eos_token_id,
+        )
 
-    for prompt in prompts:
-        inputs = tokenizer(prompt, return_tensors="pt").to(device)
-        with torch.no_grad():
-            gen_tokens = model.generate(
-                **inputs,
-                max_new_tokens=MAX_NEW_TOKENS,
-                temperature=0.8,
-                top_p=0.9,
-                do_sample=True,
-                pad_token_id=tokenizer.eos_token_id,
-            )
-        gen_text = tokenizer.decode(gen_tokens[0], skip_special_tokens=True)
-        print(f"\n--- PROMPT ---\n{prompt}\n\n--- OUTPUT ---\n{gen_text}\n{'-'*60}")
-        outputs[group].append({"prompt": prompt, "output": gen_text})
+    gen_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    print(gen_text)
 
-# ==== SAVE RESULTS ====
-with open(OUTPUT_FILE, "w") as f:
-    json.dump(outputs, f, indent=2)
-
-print(f"\n✅ All generations saved to: {OUTPUT_FILE}")
+print("\n✅ Inference complete!")
