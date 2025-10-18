@@ -151,13 +151,15 @@ def main():
 
 
     if is_main: print("🚀 Starting LoRA fine-tuning...")
-    is_iterable = isinstance(train_loader.dataset, IterableDataset)
 
     for epoch in range(args.epochs):
         running_loss = 0.0
         smoothed_loss = None
         progress_bar = get_progress(train_loader, f"Epoch {epoch}")
         epoch_start_time = time.time()
+
+        is_iterable = isinstance(train_loader.dataset, IterableDataset)
+        progress_bar = get_progress(train_loader, f"Epoch {epoch}", is_iterable)
 
         for step, batch in enumerate(progress_bar):
             batch = {k: v.to(accelerator.device) for k, v in batch.items()}
@@ -176,10 +178,15 @@ def main():
             elapsed = time.time() - epoch_start_time
             steps_done = step + 1
             avg_step_time = elapsed / steps_done
-            total_steps = len(train_loader)
-            steps_left = total_steps - steps_done
-            eta_sec = avg_step_time * steps_left
+            if not is_iterable:
+                total_steps = len(train_loader)
+                steps_left = total_steps - (step + 1)
+                eta_sec = avg_step_time * steps_left
+            else:
+                eta_sec = avg_step_time * (step + 1)  # just show elapsed as a proxy for streaming
+
             eta_str = str(timedelta(seconds=int(eta_sec)))
+
 
             if is_main:
                 progress_bar.set_postfix({"smoothed_loss": f"{smoothed_loss:.4f}", "ETA": eta_str})
