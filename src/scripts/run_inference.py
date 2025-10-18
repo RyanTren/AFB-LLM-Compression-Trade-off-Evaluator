@@ -13,7 +13,7 @@ os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
 # --- Configuration ---
 BASE_MODEL = "gpt2"
 ADAPTER_PATH = "lora_out_codegen_final"
-PROMPTS_PATH = "/data/code_prompts.json"
+PROMPTS_PATH = "/src/data/code_prompts.json"
 MAX_NEW_TOKENS = 128
 TEMPERATURE = 0.7
 TOP_P = 0.95
@@ -54,9 +54,11 @@ if os.path.exists(PROMPTS_PATH):
 else:
     print(f"⚠️ Prompt file not found at {PROMPTS_PATH}, using default prompts.")
     prompts = [
-        "Write a Python function that reverses a string.",
-        "Explain how a neural network learns.",
-        "Generate a short poem about AI and the Air Force."
+        "# Implement a stack using a Python list.",
+        "# Implement a queue using collections.deque.",
+        "# Implement a linked list with insert and delete methods.",
+        "# Implement a binary search tree with insert and search.",
+        "# Implement a simple hash table class."
     ]
 
 print(f"🧠 Loaded {len(prompts)} prompts for category '{CATEGORY}'.")
