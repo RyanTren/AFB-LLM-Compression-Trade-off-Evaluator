@@ -3,6 +3,7 @@ import torch
 import json
 from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
 from peft import PeftModel
+from torch import nn
 
 # --- CONFIG ---
 BASE_MODEL = "gpt2"
@@ -25,19 +26,21 @@ if tokenizer.pad_token is None:
 
 # Load base model
 model = AutoModelForCausalLM.from_pretrained(BASE_MODEL, torch_dtype=torch.float32)
-model.resize_token_embeddings(len(tokenizer))
 
-# --- Handle vocab size mismatch automatically ---
-try:
-    adapter_config = AutoConfig.from_pretrained(LORA_DIR)
-    expected_vocab_size = getattr(adapter_config, "vocab_size", None)
+# --- Handle tokenizer & embedding size mismatch ---
+old_emb = model.get_input_embeddings()
+old_vocab_size, hidden_size = old_emb.weight.shape
+new_vocab_size = len(tokenizer)
 
-    current_vocab_size = model.get_input_embeddings().weight.shape[0]
-    if expected_vocab_size and expected_vocab_size != current_vocab_size:
-        print(f"⚠️ Resizing base model embeddings: {current_vocab_size} → {expected_vocab_size}")
-        model.resize_token_embeddings(expected_vocab_size)
-except Exception as e:
-    print(f"ℹ️ Skipping adapter config check (no vocab info found): {e}")
+if new_vocab_size != old_vocab_size:
+    print(f"⚠️ Adjusting embeddings: {old_vocab_size} → {new_vocab_size}")
+    new_emb = nn.Embedding(new_vocab_size, hidden_size)
+    # Copy old embeddings
+    new_emb.weight.data[:old_vocab_size, :] = old_emb.weight.data
+    # Initialize new embeddings if vocab expanded
+    if new_vocab_size > old_vocab_size:
+        new_emb.weight.data[old_vocab_size:, :].normal_(mean=0.0, std=0.02)
+    model.set_input_embeddings(new_emb)
 
 # --- Load LoRA adapters ---
 model = PeftModel.from_pretrained(model, LORA_DIR)
