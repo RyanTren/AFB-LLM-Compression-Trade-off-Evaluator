@@ -13,7 +13,7 @@ os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
 # --- Configuration ---
 BASE_MODEL = "gpt2"
 ADAPTER_PATH = "lora_out_codegen_final"
-PROMPTS_PATH = "src/data/code_prompts.json"
+PROMPTS_PATH = "/data/code_prompts.json"
 MAX_NEW_TOKENS = 128
 TEMPERATURE = 0.7
 TOP_P = 0.95
