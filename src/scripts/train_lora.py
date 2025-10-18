@@ -155,7 +155,6 @@ def main():
     for epoch in range(args.epochs):
         running_loss = 0.0
         smoothed_loss = None
-        progress_bar = get_progress(train_loader, f"Epoch {epoch}")
         epoch_start_time = time.time()
 
         is_iterable = isinstance(train_loader.dataset, IterableDataset)
