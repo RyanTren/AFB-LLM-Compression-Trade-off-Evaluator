@@ -11,6 +11,7 @@ from peft import LoraConfig, get_peft_model
 from datasets import load_dataset
 from accelerate import Accelerator
 from torch.utils.data import DataLoader, IterableDataset
+from datetime import timedelta
 from tqdm import tqdm
 
 # ------------------------
@@ -76,16 +77,13 @@ def main():
         print("📘 Streaming CodeParrot dataset...")
         ds_stream = load_dataset("codeparrot/codeparrot-clean", split="train", streaming=True)
 
-        # Optional dry-run for debugging
         if args.dry_run:
             ds_stream = ds_stream.take(500)
 
         def filter_and_format(batch):
             text = batch.get("content", "")
-            # skip long files
             if len(text.split("\n")) > 50:
                 text = ""
-            # remove copyright/license lines
             lines = [l for l in text.split("\n")
                     if not l.strip().startswith("Copyright")
                     and not l.strip().startswith("Author")
@@ -94,16 +92,12 @@ def main():
                 text = ""
             else:
                 text = "\n".join(lines)
-            # wrap as Task + Solution
             formatted_text = f"# Task:\n{text}\n# Solution:\n"
             return tokenizer(formatted_text, truncation=True, padding="max_length", max_length=args.max_length)
 
-        # Map and then filter out empty sequences safely
         ds_stream = ds_stream.map(filter_and_format)
         ds_stream = ds_stream.filter(lambda x: len(x["input_ids"]) > 0)
 
-
-        # Wrap streaming dataset in iterable DataLoader
         class StreamWrapper(IterableDataset):
             def __iter__(self):
                 for sample in ds_stream:
@@ -148,6 +142,7 @@ def main():
         running_loss = 0.0
         smoothed_loss = None
         progress_bar = get_progress(train_loader, f"Epoch {epoch}")
+        epoch_start_time = time.time()
 
         for step, batch in enumerate(progress_bar):
             batch = {k: v.to(accelerator.device) for k, v in batch.items()}
@@ -161,8 +156,18 @@ def main():
 
             # EMA smoothing
             smoothed_loss = loss.item() if smoothed_loss is None else 0.9*smoothed_loss + 0.1*loss.item()
+
+            # --- Dynamic ETA calculation ---
+            elapsed = time.time() - epoch_start_time
+            steps_done = step + 1
+            avg_step_time = elapsed / steps_done
+            total_steps = len(train_loader)
+            steps_left = total_steps - steps_done
+            eta_sec = avg_step_time * steps_left
+            eta_str = str(timedelta(seconds=int(eta_sec)))
+
             if is_main:
-                progress_bar.set_postfix({"smoothed_loss": f"{smoothed_loss:.4f}"})
+                progress_bar.set_postfix({"smoothed_loss": f"{smoothed_loss:.4f}", "ETA": eta_str})
 
             if (global_step + 1) % args.gradient_accumulation == 0:
                 optimizer.step()
@@ -185,7 +190,6 @@ def main():
         epoch_losses.append(avg_loss)
         if is_main: print(f"✅ Epoch {epoch} complete | Avg loss: {avg_loss:.4f}")
 
-        # Epoch checkpoint
         accelerator.wait_for_everyone()
         if is_main:
             ckpt_dir = os.path.join(args.output_dir, f"checkpoint_epoch{epoch}")
@@ -231,12 +235,10 @@ def main():
         plt.savefig(plot_path)
         print(f"📈 Loss plot saved to: {plot_path}")
 
-        # Final save
         unwrapped = accelerator.unwrap_model(model)
         unwrapped.save_pretrained(args.output_dir)
         tokenizer.save_pretrained(args.output_dir)
         print(f"\n✅ Training complete! LoRA adapters saved to: {args.output_dir}")
-
 
 if __name__ == "__main__":
     main()
