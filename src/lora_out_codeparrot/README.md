@@ -55,154 +55,7 @@ Epoch 0: 100%|██████████████████████
 📈 Loss plot saved to: lora_out_codeparrot/loss_plot_1760728470.png
 
 ✅ Training complete! LoRA adapters + tokenizer saved to: lora_out_codeparrot
-(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ ^C
-(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ git add scripts/train_lora.py requirements.txt lora_out_codeparrot/*.json lora_out_codeparrot/*.png .gitignore
-fatal: pathspec '.gitignore' did not match any files
-(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ git add scripts/train_lora.py requirements.txt lora_out_codeparrot/*.json lora_out_codeparrot/*.png
-The following paths are ignored by one of your .gitignore files:
-src/lora_out_codeparrot
-hint: Use -f if you really want to add them.
-hint: Turn this message off by running
-hint: "git config advice.addIgnoredFile false"
-(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ ^C
-(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ echo "venv/" >> .gitignore
-(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ echo "__pycache__/" >> .gitignore
-(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ echo "*.bin" >> .gitignore
-(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ echo "lora_out_codeparrot/checkpoint_*" >> .gitignore
-(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ echo "lora_out_codeparrot/pytorch_model*" >> .gitignore
-(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ echo "lora_out_codeparrot/adapter_model.safetensors" >> .gitignore
-(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ cat .gitignore
-venv/
-__pycache__/
-*.bin
-lora_out_codeparrot/checkpoint_*
-lora_out_codeparrot/pytorch_model*
-lora_out_codeparrot/adapter_model.safetensors
-(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ git add scripts/train_lora.py requirements.txt .gitignore
-(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ git add lora_out_codeparrot/*.json lora_out_codeparrot/*.png
-The following paths are ignored by one of your .gitignore files:
-src/lora_out_codeparrot
-hint: Use -f if you really want to add them.
-hint: Turn this message off by running
-hint: "git config advice.addIgnoredFile false"
-(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ git add -f lora_out_codeparrot/*.json lora_out_codeparrot/*.png
-(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ git commit -m "Add LoRA fine-tuning script, metrics, and loss plot for CodeParrot"
-git push
-Author identity unknown
 
-*** Please tell me who you are.
-
-Run
-
-  git config --global user.email "you@example.com"
-  git config --global user.name "Your Name"
-
-to set your account's default identity.
-Omit --global to set the identity only in this repository.
-
-fatal: empty ident name (for <p10-t1llmcomp@GPU2.maas>) not allowed
-Everything up-to-date
-(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ ^C
-(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ git config -global user.email "concepting@protonmail.com"
-error: did you mean `--global` (with two dashes)?
-(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ ^C
-(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ git config --global user.email "concepting@protonmail.com"
-error: could not lock config file /mnt/sperry46/p10-t1llmcomp/.gitconfig: No such file or directory
-(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ git config --global user.name "RyanTren"
-error: could not lock config file /mnt/sperry46/p10-t1llmcomp/.gitconfig: No such file or directory
-(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ ^C
-(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ # Set git identity for this repository only (no --global flag)
-git config user.email "concepting@protonmail.com"
-git config user.name "RyanTren"
-
-# Verify the configuration
-git config user.email
-git config user.name
-
-# Now retry the commit
-git commit -m "Add LoRA fine-tuning script, metrics, and loss plot for CodeParrot"
-git push
-concepting@protonmail.com
-RyanTren
-[lora 00df265] Add LoRA fine-tuning script, metrics, and loss plot for CodeParrot
- 10 files changed, 250508 insertions(+), 37 deletions(-)
- create mode 100644 src/.gitignore
- create mode 100644 src/lora_out_codeparrot/adapter_config.json
- create mode 100644 src/lora_out_codeparrot/added_tokens.json
- create mode 100644 src/lora_out_codeparrot/loss_plot_1760728470.png
- create mode 100644 src/lora_out_codeparrot/metrics_1760728470.json
- create mode 100644 src/lora_out_codeparrot/special_tokens_map.json
- create mode 100644 src/lora_out_codeparrot/tokenizer.json
- create mode 100644 src/lora_out_codeparrot/tokenizer_config.json
- create mode 100644 src/lora_out_codeparrot/vocab.json
-Enumerating objects: 17, done.
-Counting objects: 100% (17/17), done.
-Delta compression using up to 48 threads
-Compressing objects: 100% (13/13), done.
-Writing objects: 100% (14/14), 975.39 KiB | 4.28 MiB/s, done.
-Total 14 (delta 2), reused 0 (delta 0), pack-reused 0
-remote: Resolving deltas: 100% (2/2), completed with 2 local objects.
-To github.com:RyanTren/AFB-LLM-Compression-Trade-off-Evaluator.git
-   b555ccb..00df265  lora -> lora
-(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ ^C
-(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ python scripts/run_inference.py
-/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src/venv/lib/python3.12/site-packages/transformers/utils/hub.py:110: FutureWarning: Using `TRANSFORMERS_CACHE` is deprecated and will be removed in v5 of Transformers. Use `HF_HOME` instead.
-  warnings.warn(
-🔹 Loading GPT-2 + LoRA adapter...
-The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
-Setting `pad_token_id` to `eos_token_id`:50256 for open-end generation.
-
-🔹 Prompt: Write a Python function that reverses a string.
-Write a Python function that reverses a string.
-
-import os import time import sys import time.sleep import time.sleep.sleep_time import time.sleep.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time.sleep_time
-Setting `pad_token_id` to `eos_token_id`:50256 for open-end generation.
-
-🔹 Prompt: Explain how a neural network learns.
-Explain how a neural network learns.
-
-The first step is to understand how the network learns. The second step is to understand how the network learns.
-
-The first step is to understand how the network learns.
-
-The second step is to understand how the network learns.
-
-The third step is to understand how the network learns.
-
-The third step is to understand how the network learns.
-
-The fourth step is to understand how the network learns.
-
-The fourth step is to understand how the network
-Setting `pad_token_id` to `eos_token_id`:50256 for open-end generation.
-
-🔹 Prompt: Generate a short poem about AI and the Air Force.
-Generate a short poem about AI and the Air Force.
-
-The Air Force is a major military organization. It has a large number of officers and enlisted personnel. It has a large number of officers and enlisted personnel. It has a large number of officers and enlisted personnel. It has a large number of officers and enlisted personnel. It has a large number of officers and enlisted personnel. It has a large number of officers and enlisted personnel. It has a large number of officers and enlisted personnel. It has a large number of officers and enlisted personnel. It
-Setting `pad_token_id` to `eos_token_id`:50256 for open-end generation.
-
-🔹 Result:
-Generate a short poem about AI and the Air Force.
-
-The Air Force is a major military organization. It has a large number of officers and enlisted personnel. It has a large number of officers and enlisted personnel. It has a large number of officers and enlisted personnel. It has a large number of officers and enlisted personnel. It has a large number of officers and enlisted personnel. It has a large number of officers and enlisted personnel. It has a
-(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ git fetch
-^C
-(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ git fetch
-remote: Enumerating objects: 15, done.
-remote: Counting objects: 100% (15/15), done.
-remote: Compressing objects: 100% (6/6), done.
-remote: Total 10 (delta 7), reused 5 (delta 4), pack-reused 0 (from 0)
-Unpacking objects: 100% (10/10), 4.28 KiB | 1.43 MiB/s, done.
-From github.com:RyanTren/AFB-LLM-Compression-Trade-off-Evaluator
-   00df265..1ba43cc  lora       -> origin/lora
-(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ git pull
-Updating 00df265..1ba43cc
-Fast-forward
- src/lora_out_codeparrot/README.md | 147 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- src/scripts/run_inference.py      |   2 +-
- 2 files changed, 148 insertions(+), 1 deletion(-)
- create mode 100644 src/lora_out_codeparrot/README.md
 (venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ python scripts/run_inference.py
 /tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src/venv/lib/python3.12/site-packages/transformers/utils/hub.py:110: FutureWarning: Using `TRANSFORMERS_CACHE` is deprecated and will be removed in v5 of Transformers. Use `HF_HOME` instead.
   warnings.warn(
@@ -299,3 +152,139 @@ accelerate launch --mixed_precision "fp16" --num_processes 1 scripts/train_lora.
 ```
 
 ### Results
+
+```bash
+(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ python scripts/run_inference.py
+/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src/venv/lib/python3.12/site-packages/transformers/utils/hub.py:110: FutureWarning: Using `TRANSFORMERS_CACHE` is deprecated and will be removed in v5 of Transformers. Use `HF_HOME` instead.
+  warnings.warn(
+🔹 Using device: cuda
+🔹 Loading GPT-2 + LoRA adapter from: lora_out_codegen_final
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+✅ Model loaded successfully.
+🧠 Loaded 5 prompts for category 'string_algorithms'.
+Setting `pad_token_id` to `eos_token_id`:50256 for open-end generation.
+
+================================================================================
+📝 Prompt 1: # Reverse a string in Python.
+--------------------------------------------------------------------------------
+# Task: # Reverse a string in Python.
+# Solution:
+# ============================================================================
+#
+# Copyright (C) 2008-2010, Jelte, Stefan
+# Author: Stefan Eriksson <lj@jelte.net>
+# ============================================================================
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without
+Setting `pad_token_id` to `eos_token_id`:50256 for open-end generation.
+
+================================================================================
+📝 Prompt 2: # Check if a string is a palindrome.
+--------------------------------------------------------------------------------
+# Task: # Check if a string is a palindrome.
+# Solution:
+# -*- coding: utf-8 -*-
+
+# This program is part of the OpenOffice Platform.
+# Please see https://www.openoffice.org/~kim-paul/docs/
+# OpenOffice.org Documentation:
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that
+Setting `pad_token_id` to `eos_token_id`:50256 for open-end generation.
+
+================================================================================
+📝 Prompt 3: # Count vowels and consonants in a string.
+--------------------------------------------------------------------------------
+# Task: # Count vowels and consonants in a string.
+# Solution:
+# # <a href="http://www.microsoft.com/en-us/library/windows-browser/cs7/en/html" target="_blank">http://www.microsoft.com/en-us/library/windows-browser/cs7/en/html</a>
+#
+# Copyright (C) 2008, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026, 1926, 1927, 1928, 1929, 1931, 1932, 1933, 1934, 1935, 1936
+Setting `pad_token_id` to `eos_token_id`:50256 for open-end generation.
+
+================================================================================
+📝 Prompt 4: # Remove duplicate characters from a string.
+--------------------------------------------------------------------------------
+# Task: # Remove duplicate characters from a string.
+# Solution:
+# # Remove duplicate characters from a string.
+# ################################################################################
+#
+#    Open Source PEP 8
+#    Copyright (C) 2005, 2008, 2009, 2010, 2011
+#
+#    This file is part of the Open Source PEP 8 Project
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#
+Setting `pad_token_id` to `eos_token_id`:50256 for open-end generation.
+
+================================================================================
+📝 Prompt 5: # Compress a string using run-length encoding.
+--------------------------------------------------------------------------------
+# Task: # Compress a string using run-length encoding.
+# Solution:
+#
+#    This example compresses a string using run-length encoding.
+#    The following example compresses a string using run-length encoding.
+#
+#    The following example compresses a string using run-length encoding.
+#
+#
+# This example compresses a string using run-length encoding.
+#
+#    In addition to the two examples in this example, the following example compresses a string with run-length encoding.
+#
+#
+#
+
+✅ Inference complete!
+
+```
+
+Instead of generating concise Python solutions, your model is producing large blocks of copyright notices, boilerplate comments, and repeated phrases. That’s usually a sign of overfitting or a data mismatch.
+
+### Why the output looks like this
+
+#### Dataset choice and formatting (codeparrot)
+
+codeparrot is a huge Python code dataset scraped from GitHub. It contains a lot of license headers, copyright comments, and boilerplate.
+
+If you train directly on it with low epochs, the LoRA might latch onto these patterns, especially for small prompts like # Reverse a string in Python.
+
+Result: The model tends to generate long comment blocks instead of actual solutions.
+
+#### Training configuration
+
+You trained only 1 epoch with batch size 2 and gradient accumulation 8. That’s a very light training run. LoRA may not have enough signal to generalize from task-specific patterns, so it defaults to copying patterns in the dataset (license headers, boilerplate, etc.).
+
+max_length 512 is fine, but sometimes the model might generate too many tokens and get stuck in loops of repeated text.
+
+#### Prompt design at inference
+
+Your prompts are short (# Reverse a string in Python.). Without clear task-specific formatting, the model leans on common patterns it saw in codeparrot.
+
+CodeParrot has a lot of “example code” and license headers — that’s why your model keeps outputting them.
+
+### Best improvements:
+
+Filter the dataset for short, clean examples.
+
+Train for more epochs with a slightly lower LR.
+
+Use task-specific prompts with examples.
+
+Adjust generation parameters (max_new_tokens, top_p, repetition_penalty).
+
