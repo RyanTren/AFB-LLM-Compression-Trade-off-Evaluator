@@ -133,10 +133,25 @@ def main():
     total_tokens = 0
     epoch_losses = []
 
-    def get_progress(loader, desc):
-        return tqdm(loader, desc=desc, leave=True) if is_main else loader
+    # ------------------------
+    # Helper: get progress bar
+    # ------------------------
+    def get_progress(loader, desc, is_iterable):
+        """
+        Returns a tqdm progress bar.
+        If loader length is unknown (streaming), we keep it open-ended and show elapsed/ETA manually.
+        """
+        if is_main:
+            if is_iterable:
+                return tqdm(loader, desc=desc, leave=True)
+            else:
+                return tqdm(loader, desc=desc, total=len(loader), leave=True)
+        else:
+            return loader
+
 
     if is_main: print("🚀 Starting LoRA fine-tuning...")
+    is_iterable = isinstance(train_loader.dataset, IterableDataset)
 
     for epoch in range(args.epochs):
         running_loss = 0.0
