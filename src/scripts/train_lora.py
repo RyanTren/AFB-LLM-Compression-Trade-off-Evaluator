@@ -84,21 +84,24 @@ def main():
             text = batch.get("content", "")
             # skip long files
             if len(text.split("\n")) > 50:
-                return None
+                text = ""
             # remove copyright/license lines
             lines = [l for l in text.split("\n")
-                     if not l.strip().startswith("Copyright")
-                     and not l.strip().startswith("Author")
-                     and not l.strip().startswith("# This program is free")]
+                    if not l.strip().startswith("Copyright")
+                    and not l.strip().startswith("Author")
+                    and not l.strip().startswith("# This program is free")]
             if not lines:
-                return None
-            cleaned_text = "\n".join(lines)
+                text = ""
+            else:
+                text = "\n".join(lines)
             # wrap as Task + Solution
-            formatted_text = f"# Task:\n{cleaned_text}\n# Solution:\n"
+            formatted_text = f"# Task:\n{text}\n# Solution:\n"
             return tokenizer(formatted_text, truncation=True, padding="max_length", max_length=args.max_length)
 
+        # Map and then filter out empty sequences safely
         ds_stream = ds_stream.map(filter_and_format)
-        ds_stream = ds_stream.filter(lambda x: x is not None)
+        ds_stream = ds_stream.filter(lambda x: len(x["input_ids"]) > 0)
+
 
         # Wrap streaming dataset in iterable DataLoader
         class StreamWrapper(IterableDataset):
