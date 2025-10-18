@@ -13,7 +13,7 @@ os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
 # --- Configuration ---
 BASE_MODEL = "gpt2"
 ADAPTER_PATH = "lora_out_codegen_final"
-PROMPTS_PATH = "/src/data/code_prompts.json"
+PROMPTS_PATH = "../src/data/code_prompts.json"
 MAX_NEW_TOKENS = 128
 TEMPERATURE = 0.7
 TOP_P = 0.95
@@ -33,7 +33,7 @@ if tokenizer.pad_token is None:
 
 # --- Load base model and LoRA adapter ---
 print(f"🔹 Loading GPT-2 + LoRA adapter from: {ADAPTER_PATH}")
-model = AutoModelForCausalLM.from_pretrained(BASE_MODEL, torch_dtype=torch.float32)
+model = AutoModelForCausalLM.from_pretrained(BASE_MODEL, dtype=torch.float32)
 model.resize_token_embeddings(len(tokenizer))
 model = PeftModel.from_pretrained(model, ADAPTER_PATH)
 model.to(device)
