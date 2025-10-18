@@ -1,9 +1,8 @@
 import os
 import torch
 import json
-from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
+from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
-from torch import nn
 
 # --- CONFIG ---
 BASE_MODEL = "gpt2"
@@ -19,30 +18,13 @@ print(f"🔹 Using device: {DEVICE}")
 print(f"🔹 Loading base model: {BASE_MODEL}")
 print(f"🔹 Loading LoRA adapters from: {LORA_DIR}")
 
-# Load tokenizer
+# Load tokenizer (do NOT add pad tokens to avoid embedding mismatch)
 tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL, use_fast=True)
-if tokenizer.pad_token is None:
-    tokenizer.add_special_tokens({"pad_token": "<|pad|>"})
 
 # Load base model
 model = AutoModelForCausalLM.from_pretrained(BASE_MODEL, torch_dtype=torch.float32)
 
-# --- Handle tokenizer & embedding size mismatch ---
-old_emb = model.get_input_embeddings()
-old_vocab_size, hidden_size = old_emb.weight.shape
-new_vocab_size = len(tokenizer)
-
-if new_vocab_size != old_vocab_size:
-    print(f"⚠️ Adjusting embeddings: {old_vocab_size} → {new_vocab_size}")
-    new_emb = nn.Embedding(new_vocab_size, hidden_size)
-    # Copy old embeddings
-    new_emb.weight.data[:old_vocab_size, :] = old_emb.weight.data
-    # Initialize new embeddings if vocab expanded
-    if new_vocab_size > old_vocab_size:
-        new_emb.weight.data[old_vocab_size:, :].normal_(mean=0.0, std=0.02)
-    model.set_input_embeddings(new_emb)
-
-# --- Load LoRA adapters ---
+# --- Load LoRA adapter ---
 model = PeftModel.from_pretrained(model, LORA_DIR)
 model.to(DEVICE)
 model.eval()
@@ -52,7 +34,7 @@ if os.path.exists(PROMPTS_PATH):
     with open(PROMPTS_PATH, "r") as f:
         prompts = json.load(f)
 else:
-    print(f"⚠️ Prompt file not found at {PROMPTS_PATH}, using default.")
+    print(f"⚠️ Prompt file not found at {PROMPTS_PATH}, using default prompts.")
     prompts = [
         "Write a Python function that reverses a string.",
         "Implement a Fibonacci sequence generator in Python.",
@@ -75,8 +57,7 @@ for i, prompt in enumerate(prompts):
             temperature=TEMPERATURE,
             top_p=TOP_P,
             do_sample=True,
-            pad_token_id=tokenizer.pad_token_id,
-            eos_token_id=tokenizer.eos_token_id,
+            eos_token_id=tokenizer.eos_token_id,  # use eos instead of pad
         )
 
     gen_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
