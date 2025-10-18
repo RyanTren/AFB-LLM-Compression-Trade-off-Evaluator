@@ -1,0 +1,72 @@
+{
+  "string_algorithms": [
+    "# Reverse a string in Python.",
+    "# Check if a string is a palindrome.",
+    "# Count vowels and consonants in a string.",
+    "# Remove duplicate characters from a string.",
+    "# Compress a string using run-length encoding."
+  ],
+  "lists_arrays": [
+    "# Remove duplicates from a list while preserving order.",
+    "# Merge two sorted lists into one sorted list.",
+    "# Implement bubble sort.",
+    "# Implement quicksort recursively.",
+    "# Rotate a list by k positions."
+  ],
+  "math_algorithms": [
+    "# Compute factorial recursively.",
+    "# Compute the GCD of two numbers using Euclid’s algorithm.",
+    "# Check if a number is prime.",
+    "# Generate Fibonacci numbers up to n.",
+    "# Compute the power of a number without using **."
+  ],
+  "data_structures": [
+    "# Implement a stack using a Python list.",
+    "# Implement a queue using collections.deque.",
+    "# Implement a linked list with insert and delete methods.",
+    "# Implement a binary search tree with insert and search.",
+    "# Implement a simple hash table class."
+  ],
+  "file_io": [
+    "# Read a text file and count the number of lines.",
+    "# Read a CSV file and print all rows.",
+    "# Write a dictionary to a JSON file.",
+    "# Read a JSON file and print the keys.",
+    "# Append new text to an existing file."
+  ],
+  "utilities": [
+    "# Measure the execution time of a function using a decorator.",
+    "# Generate a random secure password.",
+    "# Parse command-line arguments using argparse.",
+    "# Convert Celsius to Fahrenheit and vice versa.",
+    "# Validate an email address using regex."
+  ],
+  "classes_objects": [
+    "# Define a Rectangle class with area and perimeter methods.",
+    "# Define a BankAccount class with deposit and withdraw methods.",
+    "# Define a Student class with GPA calculation.",
+    "# Define a simple Logger class that writes to a file.",
+    "# Define an Employee class with a method for annual salary."
+  ],
+  "advanced": [
+    "# Implement matrix multiplication from scratch.",
+    "# Implement a simple neural network layer forward pass.",
+    "# Implement a memoization decorator.",
+    "# Write a context manager that measures execution time.",
+    "# Implement a generator that yields prime numbers."
+  ],
+  "scripts": [
+    "#!/usr/bin/env python3\n# Script to count words in a text file",
+    "#!/usr/bin/env python3\n# Script to rename files in a directory",
+    "#!/usr/bin/env python3\n# Script to extract all links from a webpage",
+    "#!/usr/bin/env python3\n# Script to compress all images in a folder",
+    "#!/usr/bin/env python3\n# Script to monitor CPU usage in real time"
+  ],
+  "docstring_style": [
+    "def factorial(n):\n    \"\"\"Compute factorial recursively.\"\"\"\n",
+    "def fibonacci(n):\n    \"\"\"Return a list of Fibonacci numbers.\"\"\"\n",
+    "def read_csv(filename):\n    \"\"\"Read a CSV file and return a list of dicts.\"\"\"\n",
+    "def quicksort(arr):\n    \"\"\"Sort an array using quicksort.\"\"\"\n",
+    "def is_palindrome(s):\n    \"\"\"Check if string s is palindrome.\"\"\"\n"
+  ]
+}
