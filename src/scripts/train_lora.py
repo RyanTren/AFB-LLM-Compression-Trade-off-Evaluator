@@ -50,7 +50,7 @@ def main():
     if tokenizer.pad_token is None:
         tokenizer.add_special_tokens({"pad_token": "<|pad|>"})
 
-    model = AutoModelForCausalLM.from_pretrained(args.model_id, torch_dtype=torch.float32)
+    model = AutoModelForCausalLM.from_pretrained(args.model_id, dtype=torch.float32)
     model.resize_token_embeddings(len(tokenizer))
 
     # ------------------------
