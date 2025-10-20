@@ -288,3 +288,117 @@ Use task-specific prompts with examples.
 
 Adjust generation parameters (max_new_tokens, top_p, repetition_penalty).
 
+## Training Run 3
+
+```bash
+(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src                                                       $ python scripts/run_inference.py
+/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src/venv/lib/python3.12/site-                                                       packages/transformers/utils/hub.py:110: FutureWarning: Using `TRANSFORMERS_CACHE` is dep                                                       recated and will be removed in v5 of Transformers. Use `HF_HOME` instead.
+  warnings.warn(
+🔹 Using device: cuda
+🔹 Loading GPT-2 + LoRA adapter from: ./lora_out_codegen_final
+`torch_dtype` is deprecated! Use `dtype` instead!
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covar                         iance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mea                         n_resizing=False`
+✅ Model loaded successfully.
+🧠 Loaded 5 prompts for category 'string_algorithms'.
+
+================================================================================
+📝 Prompt 1: # Reverse a string in Python.
+--------------------------------------------------------------------------------
+if len(s) > 1 and isset(s):
+
+"""A valid Unicode character with the following meanings (in ascending order).
+Example code for an example of this value:"""
+  '''' {
+  name: "Tiny",
+}
+
+ """An unary ASCII letter or number that has no characters from outside its alphabet."""
+
+================================================================================
+📝 Prompt 2: # Check if a string is a palindrome.
+--------------------------------------------------------------------------------
+"""Check whether the character contains an underscore or unicode in this case."""
+try:
+
+import ldasl
+except ImportError, Exceptions as e: // _._setfenv('undefined')
+from pyc2 import CAPI
+class Palindrome(CAPI): """Syntax for converting characters to hexadebimal numbers by passing them along with your inp                         ut values and then using these parameters together.''"" id = 'Palindrom'
+if not isset(id):
+abort=True
+characters = {'a': 0}
+
+print("A number of digits
+
+================================================================================
+📝 Prompt 3: # Count vowels and consonants in a string.
+--------------------------------------------------------------------------------
+for _,a=0..num_rows,p=len(s[:, 1],numbers) do
+except KeyboardInterrupt: print("Not counting vowel count".format(r '^'))
+
+"""Check for length of the index strings.", checkIndex = False
+
+""Validate all indexes returned by fget() on this row."""
+return True
+
+ """This function returns an array containing every integer value that can be considered as part or entire result at any given time (inclusive).
+
+"""In addition to other functions like FGet(), we also provide one more method called ``find():`` which
+
+================================================================================
+📝 Prompt 4: # Remove duplicate characters from a string.
+--------------------------------------------------------------------------------
+allletters = allletters in ['ch'][0].split('\w')
+
+if len(word) > 0 and not word.lower() or term.upper(): print '%d+', str(words))
+
+else :
+
+ """Tests for the inverse of an English alphabet."""
+
+ checksum += 1
+
+     fc, cbl=True
+  __doc__ = lambda x: (x + 2)/4
+self._checkDict([{}, {}], checkdict(), function(_fctrpy), _exception)]
+    raise Traceback
+
+================================================================================
+📝 Prompt 5: # Compress a string using run-length encoding.
+--------------------------------------------------------------------------------
+try :
+except ValueError, exceptionHandlerNotFoundException as e:
+
+from __future__ import division (absolute_import) except ImportError , ECONNECTIONALESOURCE = None ): """Printed unicode characters with an absolute length of 0 or greater."""
+if not os.path.exists('utf8').lower() in [0 for i in range(len(e.body))]: elsef
+return '\r
+'
+
+class DoublePair(object): ... def set_keyword(): print('*')
+
+"""Set the key word to be used by double pairs that
+
+✅ Inference complete!
+```
+
+#### Thing I'll try to implement:
+
+Use a code-capable base model — e.g. ``base_model = "Salesforce/codegen-350M-multi"`` instead of gpt2.
+That will hopefully drastically improve syntax correctness.
+
+* Fine-tune longer or with a cleaner dataset of (instruction, completion) pairs.
+
+- Lower temperature in your inference:
+
+``outputs = model.generate(inputs, temperature=0.2, max_new_tokens=128)``
+(Right now it’s likely defaulting to 1.0 → high randomness.)
+
+Add proper prompt formatting, e.g.:
+
+##### Task: Write a Python function to reverse a string.
+```python
+def reverse_string(s):
+```
+That helps steer the generation toward functional code.
+
+
