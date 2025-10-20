@@ -128,7 +128,7 @@ import re.version.extensions.extensions.extension_types.ext
 
 ```
 
-## Training Run 2
+# Training Run 2
 
 Some improvement logs here:
 ``train_lora.py``
@@ -151,7 +151,7 @@ accelerate launch --mixed_precision "fp16" --num_processes 1 scripts/train_lora.
   --output_dir lora_out_codegen
 ```
 
-### Results
+## Results
 
 ```bash
 (venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ python scripts/run_inference.py
@@ -288,7 +288,7 @@ Use task-specific prompts with examples.
 
 Adjust generation parameters (max_new_tokens, top_p, repetition_penalty).
 
-## Training Run 3
+# Training Run 3
 
 ```bash
 (venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src                                                       $ python scripts/run_inference.py
@@ -381,7 +381,7 @@ class DoublePair(object): ... def set_keyword(): print('*')
 ✅ Inference complete!
 ```
 
-#### Thing I'll try to implement:
+## Thing I'll try to implement:
 
 Use a code-capable base model — e.g. ``base_model = "Salesforce/codegen-350M-multi"`` instead of gpt2.
 That will hopefully drastically improve syntax correctness.
@@ -390,7 +390,7 @@ That will hopefully drastically improve syntax correctness.
 
 The accelerate scripts:
 ```bash
-accelerate launch lora_training.py \
+accelerate launch ./src/scripts/train_lora.py \
   --model_id codeparrot/codeparrot-small \
   --output_dir lora_out_codeparrot_small \
   --epochs 2 \
@@ -399,10 +399,11 @@ accelerate launch lora_training.py \
   --learning_rate 5e-5 \
   --max_length 128 \
   --dataset codeparrot
+
 ```
 
 ```bash
-accelerate launch lora_training.py \
+accelerate launch ./src/scripts/train_lora.py \
   --model_id Salesforce/codegen-350M-mono \
   --output_dir lora_out_codegen_final \
   --epochs 2 \
