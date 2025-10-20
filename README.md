@@ -42,7 +42,7 @@ src
 ├── venv/ # Local virtual environment (optional)
 └── README.md
 
-```yaml
+
 
 ---
 
@@ -141,6 +141,9 @@ After this we will Evaluate/Compare Model Performance from a :
 * Latency vs. baseline GPT-2
 
 We can upload our model to hugging face hub
+
+### More logs here
+[Training/Inference Logs](https://github.com/RyanTren/AFB-LLM-Compression-Trade-off-Evaluator/tree/lora/src/lora_out_codeparrot#readme)
 
 ### Option 2: Docker (Reproducible)
 
