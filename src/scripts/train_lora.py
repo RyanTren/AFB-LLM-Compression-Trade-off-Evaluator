@@ -20,7 +20,7 @@ from tqdm import tqdm
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--model_id", type=str, default="gpt2")
-    p.add_argument("--output_dir", type=str, default="lora_out_clean")
+    p.add_argument("--output_dir", type=str, default="lora_out_trainrun_4")
     p.add_argument("--epochs", type=int, default=3)
     p.add_argument("--batch_size", type=int, default=2)
     p.add_argument("--gradient_accumulation", type=int, default=4)
@@ -48,10 +48,18 @@ def main():
     # Load tokenizer + model
     # ------------------------
     tokenizer = AutoTokenizer.from_pretrained(args.model_id, use_fast=True)
+
     if tokenizer.pad_token is None:
         tokenizer.add_special_tokens({"pad_token": "<|pad|>"})
 
-    model = AutoModelForCausalLM.from_pretrained(args.model_id, dtype=torch.float32)
+    # 🔧 use fp16 + gradient checkpointing for GPU efficiency
+    model = AutoModelForCausalLM.from_pretrained(
+        args.model_id,
+        torch_dtype=torch.float16,
+        device_map="auto"
+    )
+
+    model.gradient_checkpointing_enable()
     model.resize_token_embeddings(len(tokenizer))
 
     # ------------------------

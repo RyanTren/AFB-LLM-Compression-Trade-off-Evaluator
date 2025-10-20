@@ -388,6 +388,31 @@ That will hopefully drastically improve syntax correctness.
 
 * Fine-tune longer or with a cleaner dataset of (instruction, completion) pairs.
 
+The accelerate scripts:
+```bash
+accelerate launch lora_training.py \
+  --model_id codeparrot/codeparrot-small \
+  --output_dir lora_out_codeparrot_small \
+  --epochs 2 \
+  --batch_size 1 \
+  --gradient_accumulation 8 \
+  --learning_rate 5e-5 \
+  --max_length 128 \
+  --dataset codeparrot
+```
+
+```bash
+accelerate launch lora_training.py \
+  --model_id Salesforce/codegen-350M-mono \
+  --output_dir lora_out_codegen_final \
+  --epochs 2 \
+  --batch_size 1 \
+  --gradient_accumulation 8 \
+  --learning_rate 5e-5 \
+  --max_length 128 \
+  --dataset codeparrot
+```
+
 - Lower temperature in your inference:
 
 ``outputs = model.generate(inputs, temperature=0.2, max_new_tokens=128)``
