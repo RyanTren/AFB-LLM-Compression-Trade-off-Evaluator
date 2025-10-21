@@ -1,4 +1,10 @@
-# Training Run 1
+# Results/Test Runs
+
+In this project the models we used for LoRA/PEFT was GPT2, CodeParrot-Small, and Salesfoce/CodeGen. In [Training Run 1](C:\Users\ryant\OneDrive\Documents\GitHub\AFB-LLM-Compression-Trade-off-Evaluator\src\lora_out_codeparrot) and [Training Run 2](src/lora_out_codegen_final) we used GPT2 and the results from training and running inference scripts on our model gave us disapointing outputs for code generation and most of the time was spent training the model on a small JSON dataset and eventual a codeparrot dataset with over 100M lines of training data.
+
+
+
+## Training Run 1
 
 This was test run one, here's everything I ran in the vm to get here
 
@@ -388,9 +394,9 @@ That will hopefully drastically improve syntax correctness.
 
 * Fine-tune longer or with a cleaner dataset of (instruction, completion) pairs.
 
-The accelerate scripts:
+The accelerate scripts (if you're cd'd into /src use these commands):
 ```bash
-accelerate launch ./src/scripts/train_lora.py \
+accelerate launch ../src/scripts/train_lora.py \
   --model_id codeparrot/codeparrot-small \
   --output_dir lora_out_codeparrot_small \
   --epochs 2 \
@@ -403,7 +409,7 @@ accelerate launch ./src/scripts/train_lora.py \
 ```
 
 ```bash
-accelerate launch ./src/scripts/train_lora.py \
+accelerate launch ../src/scripts/train_lora.py \
   --model_id Salesforce/codegen-350M-mono \
   --output_dir lora_out_codegen_final \
   --epochs 2 \
