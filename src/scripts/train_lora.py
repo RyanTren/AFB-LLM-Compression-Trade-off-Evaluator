@@ -55,7 +55,7 @@ def main():
     # 🔧 use fp16 + gradient checkpointing for GPU efficiency
     model = AutoModelForCausalLM.from_pretrained(
         args.model_id,
-        torch_dtype=torch.float16,
+        torch_dtype=torch.bfloat16,
         device_map="auto",
         trust_remote_code=True,
         use_safetensors=True,
@@ -70,7 +70,7 @@ def main():
     lora_config = LoraConfig(
         r=8,
         lora_alpha=32,
-        target_modules=["c_attn"],
+        target_modules=["c_attn", "c_proj", "q_proj", "v_proj"],
         lora_dropout=0.05,
         bias="none",
         task_type="CAUSAL_LM",
@@ -113,6 +113,7 @@ def main():
                 for sample in ds_stream:
                     yield {k: torch.tensor(v) for k, v in sample.items() if k in ["input_ids", "attention_mask"]}
 
+        ds = ds_stream.take(5000)
         train_loader = DataLoader(StreamWrapper(), batch_size=args.batch_size)
 
     elif args.dataset == "synthetic":
@@ -208,7 +209,7 @@ def main():
                 ckpt_dir = os.path.join(args.output_dir, f"checkpoint_step{global_step}")
                 os.makedirs(ckpt_dir, exist_ok=True)
                 unwrapped = accelerator.unwrap_model(model)
-                unwrapped.save_pretrained(ckpt_dir)
+                unwrapped.save_pretrained(ckpt_dir, safe_serialization=True)
                 tokenizer.save_pretrained(ckpt_dir)
                 print(f"💾 Saved intermediate checkpoint: {ckpt_dir}")
 
