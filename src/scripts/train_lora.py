@@ -190,8 +190,10 @@ def main():
                 total_steps = len(train_loader)
                 steps_left = total_steps - (step + 1)
                 eta_sec = avg_step_time * steps_left
+                avg_loss = running_loss / len(train_loader)
             else:
                 eta_sec = avg_step_time * (step + 1)  # just show elapsed as a proxy for streaming
+                avg_loss = running_loss / global_step
 
             eta_str = str(timedelta(seconds=int(eta_sec)))
 
