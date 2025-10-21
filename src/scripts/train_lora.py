@@ -56,7 +56,9 @@ def main():
     model = AutoModelForCausalLM.from_pretrained(
         args.model_id,
         torch_dtype=torch.float16,
-        device_map="auto"
+        device_map="auto",
+        trust_remote_code=True,
+        use_safetensors=True,
     )
 
     model.gradient_checkpointing_enable()
