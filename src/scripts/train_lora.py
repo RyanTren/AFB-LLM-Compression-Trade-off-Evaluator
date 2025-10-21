@@ -19,7 +19,7 @@ from tqdm import tqdm
 # ------------------------
 def parse_args():
     p = argparse.ArgumentParser()
-    p.add_argument("--model_id", type=str, default="gpt2")
+    p.add_argument("--model_id", type=str, default="codeparrot/codeparrot-small")
     p.add_argument("--output_dir", type=str, default="lora_out_trainrun_4")
     p.add_argument("--epochs", type=int, default=3)
     p.add_argument("--batch_size", type=int, default=2)
