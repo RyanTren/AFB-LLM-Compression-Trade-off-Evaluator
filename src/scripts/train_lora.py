@@ -170,6 +170,8 @@ def main():
         progress_bar = get_progress(train_loader, f"Epoch {epoch}", is_iterable)
 
         for step, batch in enumerate(progress_bar):
+            global_step += 1
+
             batch = {k: v.to(accelerator.device) for k, v in batch.items()}
             outputs = model(input_ids=batch["input_ids"],
                             attention_mask=batch["attention_mask"],
@@ -190,10 +192,10 @@ def main():
                 total_steps = len(train_loader)
                 steps_left = total_steps - (step + 1)
                 eta_sec = avg_step_time * steps_left
-                avg_loss = running_loss / len(train_loader)
+                avg_loss = running_loss / max(steps_done, 1)
             else:
                 eta_sec = avg_step_time * (step + 1)  # just show elapsed as a proxy for streaming
-                avg_loss = running_loss / global_step
+                avg_loss = running_loss / max(steps_done, 1)
 
             eta_str = str(timedelta(seconds=int(eta_sec)))
 
