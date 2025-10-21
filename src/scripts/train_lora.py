@@ -76,7 +76,6 @@ def main():
     )
     model = get_peft_model(model, lora_config)
     model.print_trainable_parameters()
-    model.to(accelerator.device)
     model = accelerator.prepare(model)
 
     # ------------------------
