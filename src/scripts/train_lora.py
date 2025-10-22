@@ -11,6 +11,7 @@ from peft import LoraConfig, get_peft_model
 from datasets import load_dataset
 from accelerate import Accelerator
 from torch.utils.data import DataLoader, IterableDataset
+from torch.nn.utils import clip_grad_norm_
 from datetime import timedelta
 from tqdm import tqdm
 
@@ -25,7 +26,8 @@ def parse_args():
     p.add_argument("--batch_size", type=int, default=2)
     p.add_argument("--gradient_accumulation", type=int, default=4)
     p.add_argument("--max_length", type=int, default=128)
-    p.add_argument("--learning_rate", type=float, default=5e-5)
+    p.add_argument("--learning_rate", type=float, default=1e-5)
+    p.add_argument("--max_grad_norm", type=float, default=1.0)
     p.add_argument("--dataset", type=str, default="codeparrot",
                    choices=["synthetic", "codeparrot"])
     p.add_argument("--save_every", type=int, default=0,
@@ -114,6 +116,8 @@ def main():
         print(f"🔹 Using model: {args.model_id}")
         print(f"🔹 Dataset: {args.dataset}")
         print(f"🔹 Output directory: {args.output_dir}")
+        print(f"🔹 Learning rate: {args.learning_rate}")
+        print(f"🔹 Max grad norm: {args.max_grad_norm}")
         print(f"🔹 Dry run: {args.dry_run}")
         if args.resume_from:
             print(f"🔹 Resuming from: {args.resume_from}")
@@ -126,11 +130,14 @@ def main():
     if tokenizer.pad_token is None:
         tokenizer.add_special_tokens({"pad_token": "<|pad|>"})
 
-    # 🔧 use fp16 + gradient checkpointing for GPU efficiency
-    # Changed from dtype to torch_dtype, and bfloat16 to float16 for M40 compatibility
+    # Load model in FP32, let Accelerate handle mixed precision conversion
+    # This is more stable than loading directly in FP16
+    if is_main:
+        print("🔧 Loading model in FP32 for stability...")
+    
     model = AutoModelForCausalLM.from_pretrained(
         args.model_id,
-        torch_dtype=torch.float16,  # FP16 for Tesla M40
+        torch_dtype=torch.float32,  # FP32 for Tesla M40
         trust_remote_code=True,
         use_safetensors=True,
     )
@@ -144,7 +151,7 @@ def main():
     lora_config = LoraConfig(
         r=8,
         lora_alpha=32,
-        target_modules=["c_attn", "c_proj"],  # Removed q_proj, v_proj (not in GPT2)
+        target_modules=["c_attn", "c_proj"],
         lora_dropout=0.05,
         bias="none",
         task_type="CAUSAL_LM",
@@ -253,7 +260,7 @@ def main():
             return loader
 
     if is_main:
-        print("🚀 Starting LoRA fine-tuning...")
+        print("🚀 Starting LoRA fine-tuning with gradient clipping...")
 
     for epoch in range(start_epoch, args.epochs):
         running_loss = 0.0
@@ -297,8 +304,12 @@ def main():
                     "ETA": eta_str
                 })
 
-            # Gradient accumulation step
+            # Gradient accumulation step with clipping
             if (step + 1) % args.gradient_accumulation == 0:
+                # CRITICAL: Clip gradients before optimizer step
+                if args.max_grad_norm > 0:
+                    accelerator.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+                
                 optimizer.step()
                 optimizer.zero_grad()
                 global_step += 1
@@ -349,6 +360,7 @@ def main():
         "batch_size": args.batch_size,
         "gradient_accumulation": args.gradient_accumulation,
         "learning_rate": args.learning_rate,
+        "max_grad_norm": args.max_grad_norm,
         "total_steps": global_step,
         "total_tokens": total_tokens,
         "avg_loss_per_epoch": epoch_losses,
