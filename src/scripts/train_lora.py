@@ -111,7 +111,7 @@ def main():
                 for sample in ds_stream:
                     yield {k: torch.tensor(v) for k, v in sample.items() if k in ["input_ids", "attention_mask"]}
 
-        ds = ds_stream.take(5000)
+        ds = ds_stream.take(2500)
         train_loader = DataLoader(StreamWrapper(), batch_size=args.batch_size)
 
     elif args.dataset == "synthetic":
