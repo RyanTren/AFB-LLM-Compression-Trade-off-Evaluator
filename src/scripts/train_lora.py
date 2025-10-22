@@ -28,9 +28,78 @@ def parse_args():
     p.add_argument("--learning_rate", type=float, default=5e-5)
     p.add_argument("--dataset", type=str, default="codeparrot",
                    choices=["synthetic", "codeparrot"])
-    p.add_argument("--save_every", type=int, default=0)
+    p.add_argument("--save_every", type=int, default=0,
+                   help="Save checkpoint every N steps (0=disabled)")
+    p.add_argument("--resume_from", type=str, default=None,
+                   help="Resume training from checkpoint directory")
+    p.add_argument("--keep_last_n_checkpoints", type=int, default=3,
+                   help="Keep only the last N checkpoints to save disk space")
     p.add_argument("--dry_run", action="store_true")
     return p.parse_args()
+
+# ------------------------
+# Checkpoint management
+# ------------------------
+def save_checkpoint(accelerator, model, tokenizer, optimizer, epoch, step, output_dir, 
+                   metrics, keep_last_n=3):
+    """Save training checkpoint with state"""
+    if not accelerator.is_main_process:
+        return
+    
+    ckpt_dir = os.path.join(output_dir, f"checkpoint-epoch{epoch}-step{step}")
+    os.makedirs(ckpt_dir, exist_ok=True)
+    
+    # Save model
+    unwrapped = accelerator.unwrap_model(model)
+    unwrapped.save_pretrained(ckpt_dir, safe_serialization=True)
+    tokenizer.save_pretrained(ckpt_dir)
+    
+    # Save training state
+    state = {
+        "epoch": epoch,
+        "step": step,
+        "optimizer_state": optimizer.state_dict(),
+        "metrics": metrics,
+    }
+    torch.save(state, os.path.join(ckpt_dir, "training_state.pt"))
+    
+    print(f"💾 Checkpoint saved: {ckpt_dir}")
+    
+    # Clean up old checkpoints
+    cleanup_old_checkpoints(output_dir, keep_last_n)
+
+def cleanup_old_checkpoints(output_dir, keep_last_n):
+    """Remove old checkpoints to save disk space"""
+    if keep_last_n <= 0:
+        return
+    
+    checkpoints = [d for d in os.listdir(output_dir) 
+                   if d.startswith("checkpoint-") and os.path.isdir(os.path.join(output_dir, d))]
+    
+    if len(checkpoints) <= keep_last_n:
+        return
+    
+    # Sort by modification time
+    checkpoints = sorted(checkpoints, 
+                        key=lambda x: os.path.getmtime(os.path.join(output_dir, x)))
+    
+    # Remove oldest checkpoints
+    to_remove = checkpoints[:-keep_last_n]
+    for ckpt in to_remove:
+        ckpt_path = os.path.join(output_dir, ckpt)
+        import shutil
+        shutil.rmtree(ckpt_path)
+        print(f"🗑️  Removed old checkpoint: {ckpt}")
+
+def load_checkpoint(checkpoint_dir):
+    """Load training checkpoint"""
+    state_path = os.path.join(checkpoint_dir, "training_state.pt")
+    if not os.path.exists(state_path):
+        return None
+    
+    state = torch.load(state_path)
+    print(f"📂 Loaded checkpoint from epoch {state['epoch']}, step {state['step']}")
+    return state
 
 # ------------------------
 # Main training function
@@ -41,8 +110,13 @@ def main():
     accelerator = Accelerator()
     is_main = accelerator.is_main_process
 
-    print(f"🔹 Using model: {args.model_id}")
-    print(f"🔹 Dataset: {args.dataset}")
+    if is_main:
+        print(f"🔹 Using model: {args.model_id}")
+        print(f"🔹 Dataset: {args.dataset}")
+        print(f"🔹 Output directory: {args.output_dir}")
+        print(f"🔹 Dry run: {args.dry_run}")
+        if args.resume_from:
+            print(f"🔹 Resuming from: {args.resume_from}")
 
     # ------------------------
     # Load tokenizer + model
@@ -53,9 +127,10 @@ def main():
         tokenizer.add_special_tokens({"pad_token": "<|pad|>"})
 
     # 🔧 use fp16 + gradient checkpointing for GPU efficiency
+    # Changed from dtype to torch_dtype, and bfloat16 to float16 for M40 compatibility
     model = AutoModelForCausalLM.from_pretrained(
         args.model_id,
-        torch_dtype=torch.float16,
+        torch_dtype=torch.float16,  # FP16 for Tesla M40
         trust_remote_code=True,
         use_safetensors=True,
     )
@@ -69,20 +144,22 @@ def main():
     lora_config = LoraConfig(
         r=8,
         lora_alpha=32,
-        target_modules=["c_attn", "c_proj", "q_proj", "v_proj"],
+        target_modules=["c_attn", "c_proj"],  # Removed q_proj, v_proj (not in GPT2)
         lora_dropout=0.05,
         bias="none",
         task_type="CAUSAL_LM",
     )
     model = get_peft_model(model, lora_config)
-    model.print_trainable_parameters()
-    model = accelerator.prepare(model)
-
+    
+    if is_main:
+        model.print_trainable_parameters()
+    
     # ------------------------
     # Dataset loading & filtering
     # ------------------------
     if args.dataset == "codeparrot":
-        print("📘 Streaming CodeParrot dataset...")
+        if is_main:
+            print("📘 Streaming CodeParrot dataset...")
         ds_stream = load_dataset("codeparrot/codeparrot-clean", split="train", streaming=True)
 
         if args.dry_run:
@@ -135,21 +212,38 @@ def main():
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate)
 
     # ------------------------
+    # Resume from checkpoint if specified
+    # ------------------------
+    start_epoch = 0
+    start_step = 0
+    resumed_metrics = None
+    
+    if args.resume_from:
+        checkpoint_state = load_checkpoint(args.resume_from)
+        if checkpoint_state:
+            optimizer.load_state_dict(checkpoint_state["optimizer_state"])
+            start_epoch = checkpoint_state["epoch"]
+            start_step = checkpoint_state["step"]
+            resumed_metrics = checkpoint_state.get("metrics", {})
+            if is_main:
+                print(f"✅ Resumed from epoch {start_epoch}, step {start_step}")
+
+    # Prepare for distributed training
+    model, optimizer, train_loader = accelerator.prepare(model, optimizer, train_loader)
+
+    # ------------------------
     # Training loop
     # ------------------------
     model.train()
-    global_step = 0
-    total_tokens = 0
-    epoch_losses = []
+    global_step = start_step
+    total_tokens = resumed_metrics.get("total_tokens", 0) if resumed_metrics else 0
+    epoch_losses = resumed_metrics.get("epoch_losses", []) if resumed_metrics else []
 
     # ------------------------
     # Helper: get progress bar
     # ------------------------
     def get_progress(loader, desc, is_iterable):
-        """
-        Returns a tqdm progress bar.
-        If loader length is unknown (streaming), we keep it open-ended and show elapsed/ETA manually.
-        """
+        """Returns a tqdm progress bar."""
         if is_main:
             if is_iterable:
                 return tqdm(loader, desc=desc, leave=True)
@@ -158,21 +252,20 @@ def main():
         else:
             return loader
 
+    if is_main:
+        print("🚀 Starting LoRA fine-tuning...")
 
-    if is_main: print("🚀 Starting LoRA fine-tuning...")
-
-    for epoch in range(args.epochs):
+    for epoch in range(start_epoch, args.epochs):
         running_loss = 0.0
         smoothed_loss = None
         epoch_start_time = time.time()
 
         is_iterable = isinstance(train_loader.dataset, IterableDataset)
-        progress_bar = get_progress(train_loader, f"Epoch {epoch}", is_iterable)
+        progress_bar = get_progress(train_loader, f"Epoch {epoch+1}/{args.epochs}", is_iterable)
 
         for step, batch in enumerate(progress_bar):
-            global_step += 1
-
             batch = {k: v.to(accelerator.device) for k, v in batch.items()}
+            
             outputs = model(input_ids=batch["input_ids"],
                             attention_mask=batch["attention_mask"],
                             labels=batch["input_ids"])
@@ -192,46 +285,58 @@ def main():
                 total_steps = len(train_loader)
                 steps_left = total_steps - (step + 1)
                 eta_sec = avg_step_time * steps_left
-                avg_loss = running_loss / max(steps_done, 1)
             else:
-                eta_sec = avg_step_time * (step + 1)  # just show elapsed as a proxy for streaming
-                avg_loss = running_loss / max(steps_done, 1)
+                eta_sec = avg_step_time * (step + 1)
 
             eta_str = str(timedelta(seconds=int(eta_sec)))
 
-
             if is_main:
-                progress_bar.set_postfix({"smoothed_loss": f"{smoothed_loss:.4f}", "ETA": eta_str})
+                progress_bar.set_postfix({
+                    "loss": f"{smoothed_loss:.4f}", 
+                    "step": global_step,
+                    "ETA": eta_str
+                })
 
-            if (global_step + 1) % args.gradient_accumulation == 0:
+            # Gradient accumulation step
+            if (step + 1) % args.gradient_accumulation == 0:
                 optimizer.step()
                 optimizer.zero_grad()
+                global_step += 1
 
-            if args.save_every and global_step > 0 and global_step % args.save_every == 0 and is_main:
-                ckpt_dir = os.path.join(args.output_dir, f"checkpoint_step{global_step}")
-                os.makedirs(ckpt_dir, exist_ok=True)
-                unwrapped = accelerator.unwrap_model(model)
-                unwrapped.save_pretrained(ckpt_dir, safe_serialization=True)
-                tokenizer.save_pretrained(ckpt_dir)
-                print(f"💾 Saved intermediate checkpoint: {ckpt_dir}")
+                # Save periodic checkpoints
+                if args.save_every > 0 and global_step % args.save_every == 0:
+                    metrics = {
+                        "epoch_losses": epoch_losses,
+                        "total_tokens": total_tokens,
+                        "current_loss": running_loss / max(steps_done, 1)
+                    }
+                    save_checkpoint(accelerator, model, tokenizer, optimizer, 
+                                  epoch, global_step, args.output_dir, metrics,
+                                  keep_last_n=args.keep_last_n_checkpoints)
 
-            global_step += 1
             if args.dry_run and step > 200:
-                if is_main: print("🧩 Dry-run stopping early")
+                if is_main:
+                    print("🧩 Dry-run stopping early")
                 break
 
-        avg_loss = running_loss / len(train_loader)
+        # Calculate epoch loss
+        avg_loss = running_loss / max(step + 1, 1)
         epoch_losses.append(avg_loss)
-        if is_main: print(f"✅ Epoch {epoch} complete | Avg loss: {avg_loss:.4f}")
+        
+        if is_main:
+            print(f"✅ Epoch {epoch+1} complete | Avg loss: {avg_loss:.4f}")
 
+        # Save end-of-epoch checkpoint
         accelerator.wait_for_everyone()
         if is_main:
-            ckpt_dir = os.path.join(args.output_dir, f"checkpoint_epoch{epoch}")
-            os.makedirs(ckpt_dir, exist_ok=True)
-            unwrapped = accelerator.unwrap_model(model)
-            unwrapped.save_pretrained(ckpt_dir)
-            tokenizer.save_pretrained(ckpt_dir)
-            print(f"💾 Epoch checkpoint saved to {ckpt_dir}")
+            metrics = {
+                "epoch_losses": epoch_losses,
+                "total_tokens": total_tokens,
+                "current_loss": avg_loss
+            }
+            save_checkpoint(accelerator, model, tokenizer, optimizer,
+                          epoch, global_step, args.output_dir, metrics,
+                          keep_last_n=args.keep_last_n_checkpoints)
 
     # ------------------------
     # Metrics and final save
@@ -251,28 +356,35 @@ def main():
     }
 
     timestamp = int(time.time())
-    metrics_path = os.path.join(args.output_dir, f"metrics_{timestamp}.json")
+    
     if is_main:
         os.makedirs(args.output_dir, exist_ok=True)
+        
+        # Save metrics
+        metrics_path = os.path.join(args.output_dir, f"metrics_{timestamp}.json")
         with open(metrics_path, "w") as f:
             json.dump(metrics, f, indent=2)
         print(f"📊 Metrics saved to: {metrics_path}")
 
         # Plot loss curve
-        plt.figure(figsize=(8,5))
-        plt.plot(range(len(epoch_losses)), epoch_losses, marker="o", color="blue", linewidth=2)
-        plt.title("Training Loss Curve")
-        plt.xlabel("Epoch")
-        plt.ylabel("Average Loss")
-        plt.grid(True)
-        plot_path = os.path.join(args.output_dir, f"loss_plot_{timestamp}.png")
-        plt.savefig(plot_path)
-        print(f"📈 Loss plot saved to: {plot_path}")
+        if epoch_losses:
+            plt.figure(figsize=(8,5))
+            plt.plot(range(len(epoch_losses)), epoch_losses, marker="o", color="blue", linewidth=2)
+            plt.title("Training Loss Curve")
+            plt.xlabel("Epoch")
+            plt.ylabel("Average Loss")
+            plt.grid(True)
+            plot_path = os.path.join(args.output_dir, f"loss_plot_{timestamp}.png")
+            plt.savefig(plot_path)
+            print(f"📈 Loss plot saved to: {plot_path}")
+            plt.close()
 
+        # Save final model
         unwrapped = accelerator.unwrap_model(model)
-        unwrapped.save_pretrained(args.output_dir)
+        unwrapped.save_pretrained(args.output_dir, safe_serialization=True)
         tokenizer.save_pretrained(args.output_dir)
         print(f"\n✅ Training complete! LoRA adapters saved to: {args.output_dir}")
+        print(f"⏱️  Total training time: {timedelta(seconds=int(total_time))}")
 
 if __name__ == "__main__":
     main()
