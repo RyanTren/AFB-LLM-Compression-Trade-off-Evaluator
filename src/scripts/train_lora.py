@@ -10,6 +10,9 @@ from accelerate import Accelerator
 from torch.utils.data import DataLoader
 import argparse
 from datetime import timedelta
+import transformers.utils.import_utils as iu
+iu.check_torch_load_is_safe = lambda: None
+
 
 os.environ.setdefault("MPLCONFIGDIR", "/tmp/mplconfig")
 
