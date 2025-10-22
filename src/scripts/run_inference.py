@@ -11,8 +11,8 @@ os.environ["HF_HUB_CACHE"] = "/tmp/hf_cache"
 os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
 
 # --- Configuration ---
-BASE_MODEL = "gpt2"
-ADAPTER_PATH = "./lora_out_codegen_final"
+BASE_MODEL = "codeparrot/codeparrot-small"  # Must match training model!
+ADAPTER_PATH = "./lora_out_codeparrot_small/checkpoint-epoch0-step10000"  # Point to specific checkpoint
 PROMPTS_PATH = "../src/data/code_prompts.json"
 MAX_NEW_TOKENS = 128
 TEMPERATURE = 0.7
@@ -27,17 +27,28 @@ NUM_FEWSHOT = 2  # number of examples to prepend
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"🔹 Using device: {device}")
 
-# --- Load tokenizer ---
-tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL, use_fast=True)
-if tokenizer.pad_token is None:
-    tokenizer.add_special_tokens({"pad_token": "<|pad|>"})
+# --- Load tokenizer from checkpoint (includes any special tokens added during training) ---
+print(f"🔹 Loading tokenizer from: {ADAPTER_PATH}")
+tokenizer = AutoTokenizer.from_pretrained(ADAPTER_PATH, use_fast=True)
+
+# Fallback to base model tokenizer if checkpoint doesn't have it
+if not os.path.exists(os.path.join(ADAPTER_PATH, "tokenizer_config.json")):
+    print(f"⚠️  Tokenizer not found in checkpoint, loading from base model: {BASE_MODEL}")
+    tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL, use_fast=True)
+    if tokenizer.pad_token is None:
+        tokenizer.add_special_tokens({"pad_token": "<|pad|>"})
 
 # --- Load base model + LoRA adapter ---
-print(f"🔹 Loading GPT-2 + LoRA adapter from: {ADAPTER_PATH}")
-model = AutoModelForCausalLM.from_pretrained(BASE_MODEL, torch_dtype=torch.float32)
+print(f"🔹 Loading {BASE_MODEL} + LoRA adapter from: {ADAPTER_PATH}")
+model = AutoModelForCausalLM.from_pretrained(
+    BASE_MODEL, 
+    torch_dtype=torch.float16,  # Use FP16 for faster inference
+    device_map="auto"  # Automatically place on available device
+)
 model.resize_token_embeddings(len(tokenizer))
+
+# Load LoRA weights from checkpoint
 model = PeftModel.from_pretrained(model, ADAPTER_PATH)
-model.to(device)
 model.eval()
 print("✅ Model loaded successfully.")
 
@@ -55,19 +66,19 @@ if os.path.exists(PROMPTS_PATH):
 else:
     print(f"⚠️ Prompt file not found at {PROMPTS_PATH}, using default prompts.")
     prompts = [
-        "# Implement a stack using a Python list.",
-        "# Implement a queue using collections.deque.",
-        "# Implement a linked list with insert and delete methods.",
-        "# Implement a binary search tree with insert and search.",
-        "# Implement a simple hash table class."
+        "Implement a function to reverse a string",
+        "Write a function to check if a string is a palindrome",
+        "Create a function to find the longest substring without repeating characters",
+        "Implement a function to count character frequency in a string",
+        "Write a function to check if two strings are anagrams"
     ]
 
 print(f"🧠 Loaded {len(prompts)} prompts for category '{CATEGORY}'.")
 
 # --- Few-shot examples for prepending ---
 few_shot_examples = [
-    "# Task: Reverse a string\n# Solution:\ndef reverse_string(s):\n    return s[::-1]\n",
-    "# Task: Check if a string is palindrome\n# Solution:\ndef is_palindrome(s):\n    return s == s[::-1]\n"
+    "# Task: Reverse a string\n# Solution:\ndef reverse_string(s):\n    return s[::-1]\n\n",
+    "# Task: Check if a string is palindrome\n# Solution:\ndef is_palindrome(s):\n    return s == s[::-1]\n\n"
 ]
 
 # --- Generation settings ---
@@ -79,9 +90,14 @@ gen_kwargs = dict(
     repetition_penalty=REPETITION_PENALTY,
     do_sample=True,
     eos_token_id=tokenizer.eos_token_id,
+    pad_token_id=tokenizer.pad_token_id
 )
 
 # --- Run inference ---
+print("\n" + "="*80)
+print(f"🚀 Running inference with checkpoint: {ADAPTER_PATH}")
+print("="*80)
+
 for i, prompt in enumerate(prompts):
     # Construct few-shot prompt
     few_shot_prompt = "".join(few_shot_examples[:NUM_FEWSHOT])
@@ -92,8 +108,7 @@ for i, prompt in enumerate(prompts):
     with torch.inference_mode():
         outputs = model.generate(
             **inputs,
-            **gen_kwargs,
-            pad_token_id=tokenizer.pad_token_id
+            **gen_kwargs
         )
 
     result = tokenizer.decode(outputs[0], skip_special_tokens=True)
