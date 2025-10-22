@@ -149,16 +149,16 @@ def save_checkpoint(accelerator, model, tokenizer, optimizer, epoch, step, outpu
 ```        
 Multi-GPU coordination:
 
-accelerator.is_main_process checks if this is the "main" GPU (rank 0)
-Only the main GPU saves checkpoints to avoid duplicate writes
-Other GPUs skip this function entirely
+* ``accelerator.is_main_process`` checks if this is the "main" GPU (rank 0)
+* Only the main GPU saves checkpoints to avoid duplicate writes
+* Other GPUs skip this function entirely
 
 ```python
     ckpt_dir = os.path.join(output_dir, f"checkpoint-epoch{epoch}-step{step}")
     os.makedirs(ckpt_dir, exist_ok=True)
 
 **Creates directory like:**
-```
+
 lora_out/
   checkpoint-epoch0-step500/
   checkpoint-epoch0-step1000/
@@ -199,7 +199,6 @@ python    # Save training state
 * ``metrics``: Loss history, token counts, etc.
 
 #### Why this matters:
-
 * If training crashes at step 2500, you can resume from step 2000
 * You don't lose hours of GPU time
 * Optimizer state ensures resumed training continues smoothly
@@ -208,7 +207,6 @@ python    # Save training state
 python
     cleanup_old_checkpoints(output_dir, keep_last_n)
 ```
-
 Automatic cleanup to prevent disk from filling up.
 
 ### 3b. Cleanup Old Checkpoints
@@ -223,7 +221,6 @@ def cleanup_old_checkpoints(output_dir, keep_last_n):
                    if d.startswith("checkpoint-") and os.path.isdir(os.path.join(output_dir, d))]
 ```
 **Finds all checkpoint directories:**
-
 * Filters for folders starting with "checkpoint-"
 * Ignores files and other directories
 
@@ -248,7 +245,7 @@ python    # Remove oldest checkpoints
         import shutil
         shutil.rmtree(ckpt_path)
         print(f"🗑️  Removed old checkpoint: {ckpt}")
-```
+
 
 **Keeps only the last N:**
 - `checkpoints[:-keep_last_n]` = all except the last N
@@ -256,7 +253,7 @@ python    # Remove oldest checkpoints
 - Prevents disk from filling up (each checkpoint ~500MB for codeparrot-small)
 
 **Example with keep_last_n=3:**
-```
+
 Before:
   checkpoint-epoch0-step500/   ← DELETE (oldest)
   checkpoint-epoch0-step1000/  ← DELETE
@@ -285,13 +282,14 @@ def load_checkpoint(checkpoint_dir):
 ```
 #### What it loads:
 
-* Reads training_state.pt file
+* Reads ``training_state.pt`` file
 * Returns dictionary with epoch, step, optimizer state, and metrics
-* Returns None if checkpoint doesn't exist (graceful failure)
+* Returns ``None`` if checkpoint doesn't exist (graceful failure)
 
 #### How it's used:
 ```
-pythonif args.resume_from:
+python
+if args.resume_from:
     checkpoint_state = load_checkpoint(args.resume_from)
     if checkpoint_state:
         optimizer.load_state_dict(checkpoint_state["optimizer_state"])  # Restore Adam state
@@ -314,15 +312,13 @@ def main():
 * Parse command-line arguments
 * Start timer for total training time
 * ``Accelerator()``: Hugging Face Accelerate's magic wrapper
-
-* Automatically detects GPUs
-* Handles distributed training
-* Makes multi-GPU code look like single-GPU code
+    * Automatically detects GPUs
+    * Handles distributed training
+    * Makes multi-GPU code look like single-GPU code
 
 
 * ``is_main``: Boolean flag for "am I the main process?"
-
-Used to prevent duplicate prints/saves
+    * Used to prevent duplicate prints/saves
 
 
 ```
@@ -344,7 +340,7 @@ tokenizer = AutoTokenizer.from_pretrained(args.model_id, use_fast=True)
 
     if tokenizer.pad_token is None:
         tokenizer.add_special_tokens({"pad_token": "<|pad|>"})
-```
+
 
 **Tokenizer:**
 - Converts text → numbers (token IDs) that the model understands
@@ -355,56 +351,64 @@ tokenizer = AutoTokenizer.from_pretrained(args.model_id, use_fast=True)
 - Padding is needed when batching sequences of different lengths
 - We add `<|pad|>` as a special token
 - Example:
-```
+
   Sequence 1: [15, 23, 45, 67, 89]
   Sequence 2: [12, 34]  → padded to [12, 34, <PAD>, <PAD>, <PAD>]
+```
 
-Load Model
-python    model = AutoModelForCausalLM.from_pretrained(
+#### Load Model
+```
+python
+    model = AutoModelForCausalLM.from_pretrained(
         args.model_id,
         torch_dtype=torch.float16,  # FP16 for Tesla M40
         trust_remote_code=True,
         use_safetensors=True,
     )
-Model loading parameters:
+```
+#### Model loading parameters:
 
-torch_dtype=torch.float16: Load in half-precision (FP16)
+* ``torch_dtype=torch.float16``: Load in half-precision (FP16)
 
-Reduces memory usage by 50%
-Codeparrot-small: 228M params × 4 bytes (FP32) = ~900MB → ~450MB (FP16)
-Important: Changed from bfloat16 because M40 doesn't support it
-
-
-trust_remote_code=True: Allows custom model code from Hugging Face
-
-Some models include custom modeling code
-Security consideration: only use trusted models
+* Reduces memory usage by 50%
+* Codeparrot-small: 228M params × 4 bytes (FP32) = ~900MB → ~450MB (FP16)
+* Important: Changed from bfloat16 because M40 doesn't support it
 
 
-use_safetensors=True: Use SafeTensors format
+* ``trust_remote_code=True``: Allows custom model code from Hugging Face
 
-Safer than pickle (no arbitrary code execution)
-Faster loading
+* Some models include custom modeling code
+* Security consideration: only use trusted models
 
 
+* ``use_safetensors=True``: Use SafeTensors format
 
+* Safer than pickle (no arbitrary code execution)
+* Faster loading
+
+
+```
 python    model.gradient_checkpointing_enable()
-Gradient checkpointing:
+```
+#### Gradient checkpointing:
 
-Trade compute for memory
-Instead of storing all intermediate activations (for backprop), recompute them
-Effect: ~50% memory savings, ~20% slower training
-Why it matters: Lets you fit larger models or bigger batches on your 12GB M40
+* Trade compute for memory
+* Instead of storing all intermediate activations (for backprop), recompute them
+* Effect: ~50% memory savings, ~20% slower training
+* Why it matters: Lets you fit larger models or bigger batches on your 12GB M40
 
+```
 python    model.resize_token_embeddings(len(tokenizer))
-Resize embeddings:
+```
+#### Resize embeddings:
 
-We added <|pad|> token to tokenizer
-Model needs an embedding vector for this new token
-This adds one row to the embedding matrix
+* We added ``<|pad|>`` token to tokenizer
+* Model needs an embedding vector for this new token
+* This adds one row to the embedding matrix
 
 
-LoRA Configuration
+#### LoRA Configuration
+```
 python    lora_config = LoraConfig(
         r=8,
         lora_alpha=32,
@@ -414,7 +418,7 @@ python    lora_config = LoraConfig(
         task_type="CAUSAL_LM",
     )
     model = get_peft_model(model, lora_config)
-```
+
 
 **LoRA parameters explained:**
 
@@ -430,30 +434,32 @@ python    lora_config = LoraConfig(
 **What LoRA does:**
 
 Original weight matrix **W** (e.g., 768×768):
-```
+
 Output = Input × W
-```
+
 
 With LoRA:
-```
+
 Output = Input × (W + A × B)
+```
 where:
 
-W is frozen (not trained)
-A is 768×8 (trainable)
-B is 8×768 (trainable)
+* W is frozen (not trained)
+* A is 768×8 (trainable)
+* B is 8×768 (trainable)
 
-Memory savings:
+#### Memory savings:
 
-Original: Train all 768×768 = 589,824 params
-LoRA: Train only (768×8 + 8×768) = 12,288 params
-~98% parameter reduction!
-
+* Original: Train all 768×768 = 589,824 params
+* LoRA: Train only (768×8 + 8×768) = 12,288 params
+* ~98% parameter reduction!
+```
 python    if is_main:
         model.print_trainable_parameters()
-```
+=
 
 **Prints something like:**
-```
+
 trainable params: 294,912 || all params: 82,125,312 || trainable%: 0.36%
+```
 This shows you're only training 0.36% of the model!
