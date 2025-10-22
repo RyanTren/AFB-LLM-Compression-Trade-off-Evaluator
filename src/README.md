@@ -24,25 +24,22 @@ This branch includes:
 ---
 
 ## 🧩 Project Structure
-src
-
+├── src/
 ├── Dockerfile
 ├── requirements.txt
 ├── accelerate_config.yaml
 ├── deepspeed_config.json
-├── scripts
+├── scripts/
 │ ├── train_lora.py # LoRA fine-tuning pipeline (DeepSpeed + PEFT)
 │ ├── eval_and_profile.py # Evaluates BLEU, latency, memory, and performance
 │ ├── router_demo.py # Dynamic query router (LoRA vs base model)
 │ ├── check_gpu.py # Detects CUDA capability for compatibility checks
 │ └── init.py
-├── data
+├── data/
 │ ├── code_train.json # Optional fine-tuning dataset (code examples)
 │ └── code_eval_prompts.json # Evaluation prompts for Code-BLEU testing
 ├── venv/ # Local virtual environment (optional)
 └── README.md
-
-```yaml
 
 ---
 
@@ -64,23 +61,73 @@ export HF_HOME=/tmp/hf_cache
 export TRANSFORMERS_CACHE=/tmp/hf_cache
 export HF_HUB_CACHE=/tmp/hf_cache
 export HF_HUB_DISABLE_TELEMETRY=1
-
-
-# then run this test command, you can experiment with epochs and batch_size once and other flags once this test command compiles
-accelerate launch --mixed_precision "fp16" scripts/train_lora.py \
-  --model_id gpt2 \
-  --dataset synthetic \
-  --epochs 1 \
-  --batch_size 1 \
-  --gradient_accumulation 2 \
-  --max_length 256 \
-  --save_every 100 \
-  --dry_run \
-  --output_dir lora_out_test
 ```
 
-This is what the expected output is after running the test command:
-![Test Command Run in VM SS](image.png)
+#### Dry-Run to Test
+```bash
+CUDA_VISIBLE_DEVICES=0 accelerate launch ../src/scripts/train_lora.py \
+  --model_id codeparrot/codeparrot-small \
+  --output_dir lora_dryrun_test \
+  --epochs 1 \
+  --batch_size 2 \
+  --gradient_accumulation 4 \
+  --learning_rate 5e-5 \
+  --max_length 128 \
+  --dataset codeparrot \
+  --dry_run
+```
+
+#### Full training with checkpoint
+
+```bash
+CUDA_VISIBLE_DEVICES=0 accelerate launch ../src/scripts/train_lora.py \
+  --model_id codeparrot/codeparrot-small \
+  --output_dir lora_out_codeparrot_small \
+  --epochs 2 \
+  --batch_size 1 \
+  --gradient_accumulation 8 \
+  --learning_rate 5e-5 \
+  --max_length 128 \
+  --dataset codeparrot \
+  --save_every 500 \
+  --keep_last_n_checkpoints 3
+```
+
+#### Resume Training off last saved checkpoint
+```bash
+CUDA_VISIBLE_DEVICES=0 accelerate launch ../src/scripts/train_lora.py \
+  --model_id codeparrot/codeparrot-small \
+  --output_dir lora_out_codeparrot_small \
+  --resume_from lora_out_codeparrot_small/checkpoint-epoch0-step500 \
+  --epochs 2 \
+  --batch_size 1 \
+  --gradient_accumulation 8 \
+  --learning_rate 5e-5 \
+  --max_length 128 \
+  --dataset codeparrot \
+  --save_every 500
+```
+**Note** ``CUDA_VISIBLE_DEVICES=0`` is set to 0 for single-GPU training, our VM has 4 M40 GPUS.
+
+**Once training is done create an Accelerate config for easier training in the future:**
+Answer the prompts:
+  - Compute environment: LOCAL_MACHINE
+  - Distributed type: NO (for single GPU)
+  - Mixed precision: fp16
+  - Number of processes: 1
+
+Now you can run:
+```bash
+accelerate launch ../src/scripts/train_lora.py ...
+
+# or pass in flags directly
+
+accelerate launch --num_processes=1 --mixed_precision=fp16 ../src/scripts/train_lora.py ...
+```
+
+
+
+- This is what the expected output is after running the test command: ![Test Command Run in VM SS](image.png)
 
 
 Once you run the accelerate command, the print statement should follow:
