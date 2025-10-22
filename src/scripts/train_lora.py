@@ -55,7 +55,7 @@ def main():
     # 🔧 use fp16 + gradient checkpointing for GPU efficiency
     model = AutoModelForCausalLM.from_pretrained(
         args.model_id,
-        dtype=torch.bfloat16,
+        torch_dtype=torch.float16,
         trust_remote_code=True,
         use_safetensors=True,
     )
