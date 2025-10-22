@@ -82,13 +82,11 @@ few_shot_examples = [
 ]
 
 # --- Generation settings ---
+# Using greedy decoding to avoid NaN issues
 gen_kwargs = dict(
     max_new_tokens=MAX_NEW_TOKENS,
-    temperature=TEMPERATURE,
-    top_p=TOP_P,
-    top_k=TOP_K,
-    repetition_penalty=REPETITION_PENALTY,
-    do_sample=True,
+    do_sample=False,  # Greedy decoding (deterministic)
+    num_beams=1,
     eos_token_id=tokenizer.eos_token_id,
     pad_token_id=tokenizer.pad_token_id
 )
