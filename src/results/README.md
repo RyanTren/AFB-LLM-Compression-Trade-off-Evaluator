@@ -410,6 +410,21 @@ accelerate launch ../src/scripts/train_lora.py \
 
 ```bash
 accelerate launch ../src/scripts/train_lora.py \
+  --model_id codeparrot/codeparrot-small \
+  --output_dir lora_out_codeparrot_small \
+  --epochs 2 \
+  --batch_size 1 \
+  --gradient_accumulation 8 \
+  --learning_rate 5e-5 \
+  --max_length 128 \
+  --dataset codeparrot \
+  --save_every 5000 \
+  --max_runtime_hours 3.75
+
+```
+
+```bash
+accelerate launch ../src/scripts/train_lora.py \
   --model_id Salesforce/codegen-350M-mono \
   --output_dir lora_out_codegen_final \
   --epochs 2 \
