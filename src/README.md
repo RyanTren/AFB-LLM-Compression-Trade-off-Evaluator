@@ -127,11 +127,57 @@ accelerate launch --num_processes=1 --mixed_precision=fp16 ../src/scripts/train_
 
 
 
-- This is what the expected output is after running the test command: ![Test Command Run in VM SS](image.png)
+- This is what the expected output is after running the test command (Dryrun):
+```bash
+(venv) p10-t1llmcomp@GPU2:/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src$ CUDA_VISIBLE_DEVICES=0 accelerate launch ../src/scripts/train_lora.py \
+  --model_id codeparrot/codeparrot-small \
+  --output_dir lora_dryrun_test \
+  --epochs 1 \
+  --batch_size 2 \
+  --gradient_accumulation 4 \
+  --learning_rate 5e-5 \
+  --max_length 128 \
+  --dataset codeparrot \
+  --dry_run
+/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src/venv/lib/python3.11/site-packages/transformers/utils/hub.py:124: FutureWarning: Using `TRANSFORMERS_CACHE` is deprecated and will be removed in v5 of Transformers. Use `HF_HOME` instead.
+  warnings.warn(
+The following values were not passed to `accelerate launch` and had defaults used instead:
+        `--num_processes` was set to a value of `1`
+        `--num_machines` was set to a value of `1`
+        `--mixed_precision` was set to a value of `'no'`
+        `--dynamo_backend` was set to a value of `'no'`
+To avoid this warning pass in values for each of the problematic parameters or run `accelerate config`.
+/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src/venv/lib/python3.11/site-packages/transformers/utils/hub.py:124: FutureWarning: Using `TRANSFORMERS_CACHE` is deprecated and will be removed in v5 of Transformers. Use `HF_HOME` instead.
+  warnings.warn(
+🔹 Using model: codeparrot/codeparrot-small
+🔹 Dataset: codeparrot
+🔹 Output directory: lora_dryrun_test
+🔹 Dry run: True
+/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src/venv/lib/python3.11/site-packages/huggingface_hub/file_download.py:945: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src/venv/lib/python3.11/site-packages/peft/tuners/lora/layer.py:1059: UserWarning: fan_in_fan_out is set to False but the target module is `Conv1D`. Setting fan_in_fan_out to True.
+  warnings.warn(
+trainable params: 811,008 || all params: 111,820,032 || trainable%: 0.7252797065913914
+📘 Streaming CodeParrot dataset...
+Resolving data files: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 54/54 [00:00<00:00, 71.18it/s]
+🚀 Starting LoRA fine-tuning...
+Epoch 1/1: 0it [00:00, ?it/s]`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`...
+Epoch 1/1: 201it [00:24,  7.66it/s, loss=nan, step=50, ETA=0:00:24]🧩 Dry-run st                                                                                                                                                             opping early
+Epoch 1/1: 201it [00:24,  8.25it/s, loss=nan, step=50, ETA=0:00:24]
+✅ Epoch 1 complete | Avg loss: nan
+/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src/venv/lib/python3.                                                                                                                                                             11/site-packages/huggingface_hub/file_download.py:945: FutureWarning: `resume_do                                                                                                                                                             wnload` is deprecated and will be removed in version 1.0.0. Downloads always res                                                                                                                                                             ume when possible. If you want to force a new download, use `force_download=True                                                                                                                                                             `.
+  warnings.warn(
+/tmp/p10-t1llmcomp/AFB-LLM-Compression-Trade-off-Evaluator/src/venv/lib/python3.                                                                                                                                                             11/site-packages/peft/utils/save_and_load.py:168: UserWarning: Setting `save_emb                                                                                                                                                             edding_layers` to `True` as the embedding layer has been resized during finetuni                                                                                                                                                             ng.
+  warnings.warn(
+💾 Checkpoint saved: lora_dryrun_test/checkpoint-epoch0-step50
+📊 Metrics saved to: lora_dryrun_test/metrics_1761154245.json
+📈 Loss plot saved to: lora_dryrun_test/loss_plot_1761154245.png
 
+✅ Training complete! LoRA adapters saved to: lora_dryrun_test
+⏱️  Total training time: 0:00:34
 
-Once you run the accelerate command, the print statement should follow:
-``Saved LoRA adpters to lora_out``
+```
+
 
 You will only see this in the ssh terminal on the vm it will show up in the ``/src/lora_out`` path. It will contain the following files:
 
@@ -158,36 +204,6 @@ This means our LoRA fine-tuning is done and our LoRA adapter is done and we can 
 ![running inference script for LoRA/PEFT Model (codeparrot dataset not working in this test)](image.png)
 ![ss of codeparrot training ](image-1.png)
 
-#### Improvements/Next Steps
-- replace synthetic dataset with a real one like ``openai_humaneval, codeparrot/codecomplex, etc``
-- train for more epochs:
-```bash
-accelerate launch --mixed_precision "no" scripts/train_lora.py \
-  --model_id gpt2 \
-  --dataset codeparrot \
-  --epochs 3 \
-  --batch_size 2 \
-  --gradient_accumulation 4 \
-  --output_dir lora_out_code
-
-```
-- re-run inference
-- explore infrence using hf connection to other open-source llms
-- eval/compare model performance
-- upload our adapter to hf to preserve our LoRA model from our VM
-- potentially try to export for deployment
-
-
-After this we will Evaluate/Compare Model Performance from a :
-* Model size reduction
-
-* Training efficiency
-
-* Accuracy / output quality
-
-* Latency vs. baseline GPT-2
-
-We can upload our model to hugging face hub
 
 ### Option 2: Docker (Reproducible)
 
