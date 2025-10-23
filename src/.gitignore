@@ -4,3 +4,8 @@ __pycache__/
 lora_out_codeparrot/checkpoint_*
 lora_out_codeparrot/pytorch_model*
 lora_out_codeparrot/adapter_model.safetensors
+lora_out_codegen_final/checkpoint_*
+lora_out_codegen_final/pytorch_model*
+lora_out_codegen_final/adapter_model.safetensors
+\!lora_out_codegen_final/*.json
+\!lora_out_codegen_final/*.png

@@ -1,0 +1,14 @@
+{
+  "model": "codeparrot/codeparrot-small",
+  "dataset": "codeparrot",
+  "epochs": 1,
+  "batch_size": 2,
+  "gradient_accumulation": 4,
+  "learning_rate": 5e-05,
+  "total_steps": 50,
+  "total_tokens": 51712,
+  "avg_loss_per_epoch": [
+    NaN
+  ],
+  "train_time_sec": 34.11322593688965
+}
