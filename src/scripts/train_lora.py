@@ -137,7 +137,6 @@ def main():
     
     model = AutoModelForCausalLM.from_pretrained(
         args.model_id,
-        torch_dtype=torch.float32,  # FP32 for Tesla M40
         trust_remote_code=True,
         use_safetensors=True,
     )
@@ -190,13 +189,29 @@ def main():
         ds_stream = ds_stream.map(filter_and_format)
         ds_stream = ds_stream.filter(lambda x: len(x["input_ids"]) > 0)
 
+        # Take exactly 2500 samples for training
+        samples_to_take = 2500 if not args.dry_run else 500
+        
         class StreamWrapper(IterableDataset):
+            def __init__(self, stream, max_samples):
+                self.stream = stream
+                self.max_samples = max_samples
+                
             def __iter__(self):
-                for sample in ds_stream:
+                count = 0
+                for sample in self.stream:
+                    if count >= self.max_samples:
+                        break
                     yield {k: torch.tensor(v) for k, v in sample.items() if k in ["input_ids", "attention_mask"]}
+                    count += 1
 
-        ds = ds_stream.take(2500)
-        train_loader = DataLoader(StreamWrapper(), batch_size=args.batch_size)
+        train_loader = DataLoader(
+            StreamWrapper(ds_stream, samples_to_take), 
+            batch_size=args.batch_size,
+            num_workers=4,
+            prefetch_factor=2,
+            pin_memory=True
+        )
 
     elif args.dataset == "synthetic":
         from datasets import Dataset
