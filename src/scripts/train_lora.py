@@ -65,7 +65,7 @@ def save_checkpoint(accelerator, model, tokenizer, optimizer, epoch, step, outpu
     }
     torch.save(state, os.path.join(ckpt_dir, "training_state.pt"))
     
-    print(f"💾 Checkpoint saved: {ckpt_dir}")
+    print("\n", f"💾 Checkpoint saved: {ckpt_dir}")
     
     # Clean up old checkpoints
     cleanup_old_checkpoints(output_dir, keep_last_n)
