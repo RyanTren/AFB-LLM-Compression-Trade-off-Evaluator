@@ -12,7 +12,7 @@ os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
 
 # --- Configuration ---
 BASE_MODEL = "codeparrot/codeparrot-small"  # Must match training model!
-ADAPTER_PATH = "./lora_out_codeparrot_small/checkpoint-epoch2-step36748"   # Point to specific checkpoint
+ADAPTER_PATH = "./lora_out_codeparrot_PROPER/checkpoint-epoch1-step624"   # Point to specific checkpoint
 PROMPTS_PATH = "../src/data/code_prompts.json"
 MAX_NEW_TOKENS = 128
 TEMPERATURE = 0.7
