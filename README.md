@@ -52,6 +52,8 @@ P10-T1 LLM Compression Trade-Off Accelerator
 
 ## ⚙️ Environment Setup
 
+[Follow this guide first to setup the repo and ssh for this project/branch, then comeback to this README.md](https://github.com/RyanTren/AFB-LLM-Compression-Trade-off-Evaluator/blob/lora/docs/setup/vm_setup.md)
+
 ### Option 1: Local (Recommended for KSU VM)
 Create a virtual environment to isolate dependencies.
 
