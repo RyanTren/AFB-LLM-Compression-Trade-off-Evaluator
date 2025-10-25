@@ -1,4 +1,4 @@
-# 🧠 LLM Compression Trade-off Evaluator — LoRA Technique Branch
+# 🧠 LLM Compression — LoRA/PEFT Technique Branch
 
 This branch implements **LoRA (Low-Rank Adaptation)** and **PEFT (Parameter-Efficient Fine-Tuning)** as part of the _LLM Compression Trade-off Evaluator_ project sponsored by **Robins AFB (AFSC/EN)**.  
 It focuses on evaluating **compression–accuracy trade-offs** in large language models, especially for **code-generation** tasks.
