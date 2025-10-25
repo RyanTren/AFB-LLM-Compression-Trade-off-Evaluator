@@ -36,6 +36,15 @@ ls -lrt
 ```
 And the Repo folder should pop-up in the VM now!
 
+* If for some reason the VM doesn't contain your ssh key anymore run this:
+```bash
+cd ~/AFB-LLM-Compression-Trade-off-Evaluator
+git remote set-url origin git@github.com:RyanTren/AFB-LLM-Compression-Trade-off-Evaluator.git
+
+ssh -T git@github.com
+# this is to test the connection and if it's successfull you should be able to fetch, pull, commit, and push like normal!
+```
+
 
 
 
