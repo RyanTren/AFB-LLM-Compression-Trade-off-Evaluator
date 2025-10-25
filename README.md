@@ -200,18 +200,6 @@ This means our LoRA fine-tuning is done and our LoRA adapter is done and we can 
 
 - [brief read on why I didn't use QLoRA](src/why_QLoRA_won't_work.md)
 
-### Progress as of 10/15/25
-
-* ✅ LoRA training working with PEFT
-* ✅ Model + adapter saved locally
-* ✅ Proper vocab alignment (embedding fixed)
-* ✅ Inference pipeline confirmed
-
-**Screenshot from VM Terminal:**
-![running inference script for LoRA/PEFT Model (codeparrot dataset not working in this test)](image.png)
-![ss of codeparrot training ](image-1.png)
-
-
 ### Option 2: Docker (Reproducible)
 
 Build and run the containerized environment:
