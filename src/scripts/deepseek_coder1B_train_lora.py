@@ -223,11 +223,23 @@ def main():
             ds = ds.select(range(500))
 
         def preprocess(batch):
-            text = batch.get("text", "")
-            formatted_text = f"# Task:\n{text}\n# Solution:\n"
-            return tokenizer(formatted_text, truncation=True, padding="max_length", max_length=args.max_length)
+            inputs = [
+                f"### Instruction:\n{inst}\n### Response:\n{out}"
+                for inst, out in zip(batch["instruction"], batch["output"])
+            ]
+            model_inputs = tokenizer(
+                inputs,
+                truncation=True,
+                padding="max_length",   # ✅ ensures all samples are same length
+                max_length=args.max_length,
+                return_tensors="pt",
+            )
 
-        ds = ds.map(preprocess, batched=True, num_proc=4)
+            label = model_inputs["input_ids"].clone()
+            model_inputs["labels"] = label
+            return model_inputs
+
+        ds = ds.map(preprocess, batched=True, num_proc=4, remove_columns=ds.column_names)
         
         train_loader = DataLoader(
             ds.remove_columns([col for col in ds.column_names if col not in ["input_ids", "attention_mask"]]),
