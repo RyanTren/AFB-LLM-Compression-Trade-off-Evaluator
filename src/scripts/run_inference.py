@@ -12,7 +12,7 @@ os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
 
 # --- Configuration ---
 BASE_MODEL = "codeparrot/codeparrot-small"  # Must match training model!
-ADAPTER_PATH = "./lora_out_codeparrot_PROPER/checkpoint-epoch1-step624"   # Point to specific checkpoint
+ADAPTER_PATH = "./models/lora_out_codeparrot_PROPER/checkpoint-epoch1-step624"   # Point to specific checkpoint
 PROMPTS_PATH = "../src/data/code_prompts.json"
 MAX_NEW_TOKENS = 128
 TEMPERATURE = 0.7
@@ -121,3 +121,12 @@ for i, prompt in enumerate(prompts):
     print(result.strip())
 
 print("\n✅ Inference complete!")
+
+# --- Prepare results folder ---
+RESULTS_DIR = "./results"
+os.makedirs(RESULTS_DIR, exist_ok=True)
+
+result_file_path = os.path.join(RESULTS_DIR, f"result_{i+1}.json")
+with open(result_file_path, "w") as f:
+    f.write(f"Prompt:\n{prompt}\n\n")
+    f.write(f"Generated Solution:\n{result.strip()}\n")
