@@ -12,7 +12,7 @@ os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
 
 # --- Configuration ---
 BASE_MODEL = "deepseek-ai/deepseek-coder-1b-base"  # Must match training model!
-ADAPTER_PATH = os.path.abspath("./lora_out_lora_out_deepseek_1b/checkpoint-epoch1-step1162")  # Point to specific checkpoint
+ADAPTER_PATH = os.path.abspath("./lora_out_deepseek_1b/checkpoint-epoch1-step1162")  # Point to specific checkpoint
 PROMPTS_PATH = "../src/data/code_prompts.json"
 MAX_NEW_TOKENS = 128
 TEMPERATURE = 0.7
