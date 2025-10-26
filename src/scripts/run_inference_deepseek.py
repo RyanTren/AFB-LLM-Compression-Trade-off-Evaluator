@@ -51,6 +51,18 @@ if tokenizer is None:
 
 # --- Load base model + LoRA adapter ---
 print(f"🔹 Loading {BASE_MODEL} + LoRA adapter from: {ADAPTER_PATH}")
+
+# Check if the checkpoint has the required LoRA files
+adapter_config_path = os.path.join(ADAPTER_PATH, "adapter_config.json")
+if not os.path.exists(adapter_config_path):
+    print(f"\n❌ ERROR: Missing 'adapter_config.json' in {ADAPTER_PATH}")
+    print("\nFiles in checkpoint directory:")
+    for f in sorted(os.listdir(ADAPTER_PATH)):
+        print(f"  - {f}")
+    print("\n💡 This checkpoint may not have been saved correctly during training.")
+    print("   Please re-run training with the fixed script to generate proper LoRA checkpoints.")
+    exit(1)
+
 model = AutoModelForCausalLM.from_pretrained(
     BASE_MODEL, 
     torch_dtype=torch.float16,  # Use FP16 for faster inference
