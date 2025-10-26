@@ -142,7 +142,9 @@ def main():
         use_safetensors=True,
     )
 
-    model.gradient_checkpointing_enable()
+    # CRITICAL: Disable cache before enabling gradient checkpointing
+    model.config.use_cache = False
+    model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
     model.resize_token_embeddings(len(tokenizer))
 
     # ------------------------
@@ -213,6 +215,7 @@ def main():
             num_workers=4,
             prefetch_factor=2,
             pin_memory=True,
+            collate_fn = default_collate
         )
 
     elif args.dataset == "iamtarun/python_code_instructions_18k_alpaca":
@@ -233,7 +236,6 @@ def main():
                 truncation=True,
                 padding="max_length",
                 max_length=args.max_length,
-                # Remove return_tensors="pt" here - let collate_fn handle it
             )
 
             # Create labels
@@ -250,8 +252,6 @@ def main():
             num_workers=4,
             pin_memory=True,
         )
-
-        
 
     elif args.dataset == "synthetic":
         from datasets import Dataset
@@ -328,9 +328,13 @@ def main():
         for step, batch in enumerate(progress_bar):
             batch = {k: v.to(accelerator.device) for k, v in batch.items()}
             
-            outputs = model(input_ids=batch["input_ids"],
-                            attention_mask=batch["attention_mask"],
-                            labels=batch["input_ids"])
+            # Ensure use_cache is False during forward pass
+            outputs = model(
+                input_ids=batch["input_ids"],
+                attention_mask=batch["attention_mask"],
+                labels=batch.get("labels", batch["input_ids"]),
+                use_cache=False
+            )
             loss = outputs.loss / args.gradient_accumulation
             accelerator.backward(loss)
             running_loss += loss.item() * args.gradient_accumulation
