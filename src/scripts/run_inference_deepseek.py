@@ -27,13 +27,24 @@ NUM_FEWSHOT = 2  # number of examples to prepend
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"🔹 Using device: {device}")
 
-# --- Load tokenizer from checkpoint (includes any special tokens added during training) ---
-print(f"🔹 Loading tokenizer from: {ADAPTER_PATH}")
-tokenizer = AutoTokenizer.from_pretrained(ADAPTER_PATH, use_fast=True)
+# --- Load tokenizer ---
+# First try loading from checkpoint, then fallback to base model
+tokenizer = None
+checkpoint_tokenizer_path = os.path.join(ADAPTER_PATH, "tokenizer_config.json")
 
-# Fallback to base model tokenizer if checkpoint doesn't have it
-if not os.path.exists(os.path.join(ADAPTER_PATH, "tokenizer_config.json")):
-    print(f"⚠️  Tokenizer not found in checkpoint, loading from base model: {BASE_MODEL}")
+if os.path.exists(checkpoint_tokenizer_path):
+    print(f"🔹 Loading tokenizer from checkpoint: {ADAPTER_PATH}")
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(
+            ADAPTER_PATH, 
+            use_fast=True,
+            local_files_only=True  # CRITICAL: Load from local directory
+        )
+    except Exception as e:
+        print(f"⚠️  Failed to load tokenizer from checkpoint: {e}")
+
+if tokenizer is None:
+    print(f"🔹 Loading tokenizer from base model: {BASE_MODEL}")
     tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL, use_fast=True)
     if tokenizer.pad_token is None:
         tokenizer.add_special_tokens({"pad_token": "<|pad|>"})
@@ -48,7 +59,13 @@ model = AutoModelForCausalLM.from_pretrained(
 model.resize_token_embeddings(len(tokenizer))
 
 # Load LoRA weights from checkpoint
-model = PeftModel.from_pretrained(model, ADAPTER_PATH, local_files_only=True, is_trainable=False, repo_type="local")
+print(f"🔹 Loading LoRA adapter from: {ADAPTER_PATH}")
+model = PeftModel.from_pretrained(
+    model, 
+    ADAPTER_PATH, 
+    local_files_only=True,
+    is_trainable=False
+)
 model.eval()
 print("✅ Model loaded successfully.")
 
@@ -131,4 +148,3 @@ for i, prompt in enumerate(prompts):
         f.write(f"Generated Solution:\n{result.strip()}\n")
 
 print("\n✅ Inference complete!")
-
