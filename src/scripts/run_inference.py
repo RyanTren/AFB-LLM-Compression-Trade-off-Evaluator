@@ -12,7 +12,7 @@ os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
 
 # --- Configuration ---
 BASE_MODEL = "codeparrot/codeparrot-small"  # Must match training model!
-ADAPTER_PATH = os.path.abspath("./lora_out_codeparrot_PROPER/checkpoint-epoch1-step624")   # Point to specific checkpoint
+ADAPTER_PATH = "./lora_out_codeparrot_PROPER/checkpoint-epoch1-step624"  # Point to specific checkpoint
 PROMPTS_PATH = "../src/data/code_prompts.json"
 MAX_NEW_TOKENS = 128
 TEMPERATURE = 0.7
@@ -48,7 +48,7 @@ model = AutoModelForCausalLM.from_pretrained(
 model.resize_token_embeddings(len(tokenizer))
 
 # Load LoRA weights from checkpoint
-model = PeftModel.from_pretrained(model, peft_model_id=ADAPTER_PATH, local_files_only=True)
+model = PeftModel.from_pretrained(model, ADAPTER_PATH, local_files_only=True)
 model.eval()
 print("✅ Model loaded successfully.")
 
