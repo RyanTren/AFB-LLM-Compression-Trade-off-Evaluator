@@ -11,6 +11,7 @@ from peft import LoraConfig, get_peft_model
 from datasets import load_dataset
 from accelerate import Accelerator
 from torch.utils.data import DataLoader, IterableDataset
+from torch.utils.data.dataloader import default_collate
 from torch.nn.utils import clip_grad_norm_
 from datetime import timedelta
 from tqdm import tqdm
@@ -211,7 +212,7 @@ def main():
             batch_size=args.batch_size,
             num_workers=4,
             prefetch_factor=2,
-            pin_memory=True
+            pin_memory=True,
         )
 
     elif args.dataset == "iamtarun/python_code_instructions_18k_alpaca":
@@ -230,24 +231,27 @@ def main():
             model_inputs = tokenizer(
                 inputs,
                 truncation=True,
-                padding="max_length",   # ✅ ensures all samples are same length
+                padding="max_length",
                 max_length=args.max_length,
-                return_tensors="pt",
+                # Remove return_tensors="pt" here - let collate_fn handle it
             )
 
-            label = model_inputs["input_ids"].clone()
-            model_inputs["labels"] = label
+            # Create labels
+            model_inputs["labels"] = model_inputs["input_ids"].copy()
             return model_inputs
 
         ds = ds.map(preprocess, batched=True, num_proc=4, remove_columns=ds.column_names)
+        ds.set_format(type="torch", columns=["input_ids", "attention_mask", "labels"])
         
         train_loader = DataLoader(
-            ds.remove_columns([col for col in ds.column_names if col not in ["input_ids", "attention_mask"]]),
+            ds,
             batch_size=args.batch_size,
             shuffle=True,
             num_workers=4,
-            pin_memory=True
+            pin_memory=True,
         )
+
+        
 
     elif args.dataset == "synthetic":
         from datasets import Dataset
