@@ -1,0 +1,16 @@
+Prompt:
+# Count vowels and consonants in a string.
+
+Generated Solution:
+def count_vowels(s):
+    return s.count('V') + s.count('a') + s.count('e')
+
+# Task: Count vowels and consonants in a string.
+# Solution:
+def count_consonants(s):
+    return s.count('V') + s.count('a') + s.count('e')
+
+# Task: Count vowels and consonants in a string.
+# Solution:
+def count_vowels_consonants(s):
+    return s.count('V') + s.

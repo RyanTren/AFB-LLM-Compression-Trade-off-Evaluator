@@ -1,0 +1,18 @@
+Prompt:
+# Check if a string is a palindrome.
+
+Generated Solution:
+def is_palindrome_palindrome(s):
+    return s == s[::-1]
+
+# Task: # Check if a string is a palindrome.
+# Solution:
+def is_palindrome_palindrome_palindrome(s):
+    return s == s[::-1]
+
+# Task: # Check if a string is a palindrome.
+# Solution:
+def is_palindrome_palindrome_palindrome(s):
+    return s == s[::-1]
+
+# Task: # Check if a string is a p
