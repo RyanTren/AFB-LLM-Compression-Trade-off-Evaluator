@@ -151,10 +151,10 @@ def main():
     # LoRA configuration
     # ------------------------
     lora_config = LoraConfig(
-        r=8,
-        lora_alpha=16,
+        r=16,
+        lora_alpha=32,
         target_modules=["W_pack", "o_proj", "down_proj", "up_proj"],
-        lora_dropout=0.05,
+        lora_dropout=0.1,
         bias="none",
         task_type="CAUSAL_LM",
     )
