@@ -48,7 +48,7 @@ model = AutoModelForCausalLM.from_pretrained(
 model.resize_token_embeddings(len(tokenizer))
 
 # Load LoRA weights from checkpoint
-model = PeftModel.from_pretrained(model, ADAPTER_PATH, local_files_only=True, repo_type="local")
+model = PeftModel.from_pretrained(model, ADAPTER_PATH, local_files_only=True)
 model.eval()
 print("✅ Model loaded successfully.")
 
