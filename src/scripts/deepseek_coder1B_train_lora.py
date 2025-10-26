@@ -214,6 +214,29 @@ def main():
             pin_memory=True
         )
 
+    elif args.dataset == "iamtarun/python_code_instructions_18k_alpaca":
+        if is_main:
+            print("📘 Loading iamtarun/python_code_instructions_18k_alpaca dataset...")
+        ds = load_dataset("iamtarun/python_code_instructions_18k_alpaca", split="train")
+
+        if args.dry_run:
+            ds = ds.select(range(500))
+
+        def preprocess(batch):
+            text = batch.get("text", "")
+            formatted_text = f"# Task:\n{text}\n# Solution:\n"
+            return tokenizer(formatted_text, truncation=True, padding="max_length", max_length=args.max_length)
+
+        ds = ds.map(preprocess, batched=True, num_proc=4)
+        
+        train_loader = DataLoader(
+            ds.remove_columns([col for col in ds.column_names if col not in ["input_ids", "attention_mask"]]),
+            batch_size=args.batch_size,
+            shuffle=True,
+            num_workers=4,
+            pin_memory=True
+        )
+
     elif args.dataset == "synthetic":
         from datasets import Dataset
         ds = Dataset.from_list([
