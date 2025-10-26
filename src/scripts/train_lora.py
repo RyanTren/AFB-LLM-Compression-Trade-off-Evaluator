@@ -29,7 +29,7 @@ def parse_args():
     p.add_argument("--learning_rate", type=float, default=1e-5)
     p.add_argument("--max_grad_norm", type=float, default=1.0)
     p.add_argument("--dataset", type=str, default="codeparrot",
-                   choices=["synthetic", "codeparrot"])
+                   choices=["synthetic", "codeparrot", "iamtarun/python_code_instructions_18k_alpaca"])
     p.add_argument("--save_every", type=int, default=0,
                    help="Save checkpoint every N steps (0=disabled)")
     p.add_argument("--resume_from", type=str, default=None,
@@ -167,6 +167,7 @@ def main():
         if is_main:
             print("📘 Streaming CodeParrot dataset...")
         ds_stream = load_dataset("codeparrot/codeparrot-clean", split="train", streaming=True)
+
 
         if args.dry_run:
             ds_stream = ds_stream.take(500)
