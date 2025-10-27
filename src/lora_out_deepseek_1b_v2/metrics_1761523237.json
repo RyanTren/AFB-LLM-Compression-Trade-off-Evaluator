@@ -1,0 +1,19 @@
+{
+  "model": "deepseek-ai/deepseek-coder-1b-base",
+  "dataset": "iamtarun/python_code_instructions_18k_alpaca",
+  "epochs": 5,
+  "batch_size": 1,
+  "gradient_accumulation": 8,
+  "learning_rate": 3e-05,
+  "max_grad_norm": 1.0,
+  "total_steps": 2905,
+  "total_tokens": 11911680,
+  "avg_loss_per_epoch": [
+    0.2455498698723334,
+    0.1766018023385768,
+    0.1785449687473183,
+    0.17341533501134326,
+    0.1728795948055049
+  ],
+  "train_time_sec": 32038.07595062256
+}
