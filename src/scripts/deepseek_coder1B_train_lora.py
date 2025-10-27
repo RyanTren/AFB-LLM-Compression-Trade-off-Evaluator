@@ -13,8 +13,11 @@ from accelerate import Accelerator
 from torch.utils.data import DataLoader, IterableDataset
 from torch.utils.data.dataloader import default_collate
 from torch.nn.utils import clip_grad_norm_
+import torch._dynamo
 from datetime import timedelta
 from tqdm import tqdm
+
+torch._dynamo.config.suppress_errors = True
 
 # ------------------------
 # Argument parser
