@@ -13,11 +13,8 @@ from accelerate import Accelerator
 from torch.utils.data import DataLoader, IterableDataset
 from torch.utils.data.dataloader import default_collate
 from torch.nn.utils import clip_grad_norm_
-import torch._dynamo
 from datetime import timedelta
 from tqdm import tqdm
-
-torch._dynamo.config.suppress_errors = True
 
 # ------------------------
 # Argument parser
@@ -163,13 +160,6 @@ def main():
     )
     model = get_peft_model(model, lora_config)
 
-    try:
-        model = torch.compile(model)
-        if is_main:
-            print("⚡ Using torch.compile for optimized training")
-    except Exception as e:
-        if is_main:
-            print(f"⚠️  torch.compile failed, proceeding without it: {e}")
     
     if is_main:
         model.print_trainable_parameters()
