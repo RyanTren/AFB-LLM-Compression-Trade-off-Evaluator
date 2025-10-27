@@ -159,6 +159,14 @@ def main():
         task_type="CAUSAL_LM",
     )
     model = get_peft_model(model, lora_config)
+
+    try:
+        model = torch.compile(model)
+        if is_main:
+            print("⚡ Using torch.compile for optimized training")
+    except Exception as e:
+        if is_main:
+            print(f"⚠️  torch.compile failed, proceeding without it: {e}")
     
     if is_main:
         model.print_trainable_parameters()
@@ -260,7 +268,7 @@ def main():
             {"text": "# Task: Check palindrome\n# Solution:\ndef is_palindrome(s): return s==s[::-1]"},
         ])
         def preprocess(batch):
-            return tokenizer(batch["text"], truncation=True, padding="max_length", max_length=args.max_length)
+            return tokenizer(batch["text"], truncation=True, padding="max_length", max_length=args.max_length, pad_to_multiple_of = 8)
         ds = ds.map(preprocess)
         class SyntheticWrapper(IterableDataset):
             def __iter__(self):
