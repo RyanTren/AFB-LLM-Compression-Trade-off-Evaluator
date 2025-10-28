@@ -3,7 +3,7 @@ base_model: deepseek-ai/deepseek-coder-1b-base
 library_name: peft
 ---
 
-# Model Card for Model ID
+# Model Card for ``lora_out_deepseek_1b_v2``
 
 <!-- Provide a quick summary of what the model is/does. -->
 
@@ -11,9 +11,28 @@ library_name: peft
 
 ## Model Details
 
+
+
+Launch Command for V2:
+```bash
+accelerate launch --multi_gpu scripts/deeps                                                                                                                         eek_coder1B_train_lora.py \
+  --model_id deepseek-ai/deepseek-coder-1b-base \
+  --output_dir lora_out_deepseek_1b_v2 \
+  --epochs 5 \
+  --batch_size 1 \
+  --gradient_accumulation 8 \
+  --learning_rate 3e-5 \
+  --max_length 512 \
+  --dataset iamtarun/python_code_instructions_18k_alpaca \
+  --save_every 500 \
+  --keep_last_n_checkpoints 3 \
+```
+
 ### Model Description
 
 <!-- Provide a longer summary of what this model is. -->
+
+
 
 
 
