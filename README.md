@@ -4,6 +4,12 @@
 This project explores **compression techniques for Large Language Models (LLMs)** and their impact on **inference quality** for **code-generation tasks**.  
 The goal is to evaluate trade-offs between model size, accuracy, and efficiency, ultimately enabling **smaller, cost-effective models** without significantly compromising performance.  
 
+## Branches for different compression techniques explored!
+
+- [LoRA/PEFT - Ryan](https://github.com/RyanTren/AFB-LLM-Compression-Trade-off-Evaluator/tree/lora)
+- [Quantinization - Aldi](https://github.com/RyanTren/AFB-LLM-Compression-Trade-off-Evaluator/tree/quantization)
+- [Knowledge Distilation - Pranav](https://github.com/RyanTren/AFB-LLM-Compression-Trade-off-Evaluator/tree/Knowledge_distillation)
+
 Sponsored by **Robins AFB – AFSC/EN**  
 🔗 [Robins AFB Website](https://www.robins.af.mil/)  
 
