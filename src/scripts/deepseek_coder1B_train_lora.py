@@ -151,8 +151,8 @@ def main():
     # LoRA configuration
     # ------------------------
     lora_config = LoraConfig(
-        r=16,
-        lora_alpha=32,
+        r=32,
+        lora_alpha=64,
         target_modules=["W_pack", "o_proj", "down_proj", "up_proj"],
         lora_dropout=0.1,
         bias="none",
