@@ -13,6 +13,7 @@ from datasets import Dataset as HFDataset
 from accelerate import Accelerator
 from torch.utils.data import DataLoader, IterableDataset
 from torch.utils.data.dataloader import default_collate
+from torch.nn.utuls.rnn import pad_sequence
 from datetime import timedelta
 from tqdm import tqdm
 
@@ -185,6 +186,26 @@ def main():
 
     if is_main:
         model.print_trainable_parameters()
+
+
+    # ------------------------
+    # Safe collate for variable-length sequences
+    # ------------------------
+    def collate_fn(batch):
+        # Filter out any invalid samples
+        batch = [b for b in batch if b.get("input_ids") is not None and b.get("labels") is not None]
+
+        input_ids = [torch.tensor(b["input_ids"]) for b in batch]
+        input_ids = pad_sequence(input_ids, batch_first=True, padding_value=0)
+
+        attention_mask = [torch.tensor(b["attention_mask"]) for b in batch]
+        attention_mask = pad_sequence(attention_mask, batch_first=True, padding_value=0)
+
+        labels = [torch.tensor(b["labels"]) for b in batch]
+        labels = pad_sequence(labels, batch_first=True, padding_value=-100)
+
+        return {"input_ids": input_ids, "attention_mask": attention_mask, "labels": labels}
+
     
     # ------------------------
     # Dataset loading & filtering
@@ -305,6 +326,7 @@ def main():
         shuffle=True,
         num_workers=4,
         pin_memory=True,
+        collate_fn=collate_fn
     )
 
     # ------------------------
