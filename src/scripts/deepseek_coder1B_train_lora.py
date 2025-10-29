@@ -6,14 +6,13 @@ import time
 import json
 import torch
 import matplotlib.pyplot as plt
-from transformers import AutoModelForCausalLM, AutoTokenizer
-from transformers import get_linear_schedule_with_warmup
+from transformers import AutoModelForCausalLM, AutoTokenizer, get_scheduler
 from peft import LoraConfig, get_peft_model
 from datasets import load_dataset, concatenate_datasets
+from datasets import Dataset as HFDataset
 from accelerate import Accelerator
 from torch.utils.data import DataLoader, IterableDataset
 from torch.utils.data.dataloader import default_collate
-from torch.nn.utils import clip_grad_norm_
 from datetime import timedelta
 from tqdm import tqdm
 
@@ -31,8 +30,20 @@ def parse_args():
     p.add_argument("--learning_rate", type=float, default=1e-5)
     p.add_argument("--max_grad_norm", type=float, default=1.0)
     p.add_argument("--warmup_ratio", type=float, default=0.05)
-    p.add_argument("--dataset", type=str, default="code_alpaca,codeparrot",
-                   choices=["synthetic", "codeparrot", "iamtarun/python_code_instructions_18k_alpaca"])
+
+    # Accept either a single dataset name or multiple comma-separated names
+    p.add_argument("--dataset", type=str, default="codeparrot",
+                   help="Single dataset name or comma-separated list. Supported values: synthetic, codeparrot, iamtarun/python_code_instructions_18k_alpaca")
+
+    # Backwards-compatible new flag for mixture
+    p.add_argument("--dataset_mix", type=str, default=None,
+                   help="Comma-separated dataset names. If provided, overrides --dataset")
+
+    # lr scheduler choice
+    p.add_argument("--lr_scheduler", type=str, default="linear",
+                   choices=["linear", "cosine"],
+                   help="Learning rate scheduler to use: linear or cosine (with warmup)")
+
     p.add_argument("--save_every", type=int, default=0,
                    help="Save checkpoint every N steps (0=disabled)")
     p.add_argument("--resume_from", type=str, default=None,
@@ -64,7 +75,7 @@ def save_checkpoint(accelerator, model, tokenizer, optimizer, scheduler, epoch, 
         "epoch": epoch,
         "step": step,
         "optimizer_state": optimizer.state_dict(),
-        "scheduler_state": scheduler.state_dict(),
+        "scheduler_state": scheduler.state_dict() if scheduler is not None else None,
         "metrics": metrics,
     }
     torch.save(state, os.path.join(ckpt_dir, "training_state.pt"))
@@ -79,13 +90,16 @@ def cleanup_old_checkpoints(output_dir, keep_last_n):
     if keep_last_n <= 0:
         return
     
+    if not os.path.isdir(output_dir):
+        return
+
     checkpoints = [d for d in os.listdir(output_dir) 
                    if d.startswith("checkpoint-") and os.path.isdir(os.path.join(output_dir, d))]
     
     if len(checkpoints) <= keep_last_n:
         return
     
-    # Sort by modification time
+    # Sort by modification time (oldest first)
     checkpoints = sorted(checkpoints, 
                         key=lambda x: os.path.getmtime(os.path.join(output_dir, x)))
     
@@ -103,7 +117,7 @@ def load_checkpoint(checkpoint_dir):
     if not os.path.exists(state_path):
         return None
     
-    state = torch.load(state_path)
+    state = torch.load(state_path, map_location="cpu")
     print(f"📂 Loaded checkpoint from epoch {state['epoch']}, step {state['step']}")
     return state
 
@@ -118,10 +132,11 @@ def main():
 
     if is_main:
         print(f"🔹 Using model: {args.model_id}")
-        print(f"🔹 Dataset: {args.dataset}")
+        print(f"🔹 Dataset (requested): {args.dataset if args.dataset_mix is None else args.dataset_mix}")
         print(f"🔹 Output directory: {args.output_dir}")
         print(f"🔹 Learning rate: {args.learning_rate}")
         print(f"🔹 Max grad norm: {args.max_grad_norm}")
+        print(f"🔹 LR scheduler: {args.lr_scheduler}")
         print(f"🔹 Dry run: {args.dry_run}")
         if args.resume_from:
             print(f"🔹 Resuming from: {args.resume_from}")
@@ -135,10 +150,9 @@ def main():
         tokenizer.add_special_tokens({"pad_token": "<|pad|>"})
 
     # Load model in FP32, let Accelerate handle mixed precision conversion
-    # This is more stable than loading directly in FP16
     if is_main:
         print("🔧 Loading model in FP32 for stability...")
-    
+
     model = AutoModelForCausalLM.from_pretrained(
         args.model_id,
         trust_remote_code=True,
@@ -147,7 +161,13 @@ def main():
 
     # CRITICAL: Disable cache before enabling gradient checkpointing
     model.config.use_cache = False
-    model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+    # Use the simple call; model implementations vary
+    try:
+        model.gradient_checkpointing_enable()
+    except Exception:
+        # Some models may not implement this method or accept kwargs
+        pass
+
     model.resize_token_embeddings(len(tokenizer))
 
     # ------------------------
@@ -163,73 +183,62 @@ def main():
     )
     model = get_peft_model(model, lora_config)
 
-    
     if is_main:
         model.print_trainable_parameters()
     
     # ------------------------
     # Dataset loading & filtering
     # ------------------------
-    dataset_names = [d.strip() for d in args.dataset.split(",")]
+    dataset_arg = args.dataset_mix if args.dataset_mix else args.dataset
+    dataset_names = [d.strip() for d in dataset_arg.split(",") if d.strip()]
     processed_datasets = []
 
     for name in dataset_names:
 
-        if args.dataset and name == "codeparrot":
+        if name == "codeparrot" or name.startswith("codeparrot"):
             if is_main:
                 print("📘 Streaming CodeParrot dataset...")
             ds_stream = load_dataset("codeparrot/codeparrot-clean", split="train", streaming=True)
 
-
             if args.dry_run:
-                ds_stream = ds_stream.take(500)
+                samples_to_take = 500
+            else:
+                samples_to_take = 2500
 
-            def filter_and_format(batch):
-                text = batch.get("content", "")
+            buffer = []
+
+            def filter_and_format(example):
+                text = example.get("content", "") or ""
                 if len(text.split("\n")) > 50:
-                    text = ""
+                    return None
                 lines = [l for l in text.split("\n")
                         if not l.strip().startswith("Copyright")
                         and not l.strip().startswith("Author")
                         and not l.strip().startswith("# This program is free")]
                 if not lines:
-                    text = ""
-                else:
-                    text = "\n".join(lines)
-                formatted_text = f"# Task:\n{text}\n# Solution:\n"
-                return tokenizer(formatted_text, truncation=True, padding="max_length", max_length=args.max_length)
+                    return None
+                text_clean = "\n".join(lines)
+                formatted_text = f"# Task:\n{text_clean}\n# Solution:\n"
+                tokenized = tokenizer(formatted_text, truncation=True, padding="max_length", max_length=args.max_length)
+                return {"input_ids": tokenized["input_ids"], "attention_mask": tokenized["attention_mask"]}
 
-            ds_stream = ds_stream.map(filter_and_format)
-            ds_stream = ds_stream.filter(lambda x: len(x["input_ids"]) > 0)
+            count = 0
+            for example in ds_stream:
+                if count >= samples_to_take:
+                    break
+                out = filter_and_format(example)
+                if out is None:
+                    continue
+                buffer.append(out)
+                count += 1
 
-            # Take exactly 2500 samples for training
-            samples_to_take = 2500 if not args.dry_run else 500
-            
-            class StreamWrapper(IterableDataset):
-                def __init__(self, stream, max_samples):
-                    self.stream = stream
-                    self.max_samples = max_samples
-                    
-                def __iter__(self):
-                    count = 0
-                    for sample in self.stream:
-                        if count >= self.max_samples:
-                            break
-                        yield {k: torch.tensor(v) for k, v in sample.items() if k in ["input_ids", "attention_mask"]}
-                        count += 1
+            if len(buffer) == 0:
+                raise RuntimeError("No CodeParrot examples collected (check filters).")
 
-            train_loader = DataLoader(
-                StreamWrapper(ds_stream, samples_to_take), 
-                batch_size=args.batch_size,
-                num_workers=4,
-                prefetch_factor=2,
-                pin_memory=True,
-                collate_fn = default_collate
-            )
-
+            codeparrot_ds = HFDataset.from_list(buffer)
             processed_datasets.append(codeparrot_ds)
 
-        elif args.dataset == "iamtarun/python_code_instructions_18k_alpaca":
+        elif name == "iamtarun/python_code_instructions_18k_alpaca":
             if is_main:
                 print("📘 Loading iamtarun/python_code_instructions_18k_alpaca dataset...")
             ds = load_dataset("iamtarun/python_code_instructions_18k_alpaca", split="train")
@@ -249,41 +258,46 @@ def main():
                     max_length=args.max_length,
                 )
 
-                # Create labels
-                model_inputs["labels"] = model_inputs["input_ids"].copy()
+                # Create labels (copy of input_ids)
+                model_inputs["labels"] = [list(ids) for ids in model_inputs["input_ids"]]
                 return model_inputs
 
             ds = ds.map(preprocess, batched=True, num_proc=4, remove_columns=ds.column_names)
-            ds.set_format(type="torch", columns=["input_ids", "attention_mask", "labels"])
-            
-            train_loader = DataLoader(
-                ds,
-                batch_size=args.batch_size,
-                shuffle=True,
-                num_workers=4,
-                pin_memory=True,
-            )
-
+            alpaca_ds = ds
             processed_datasets.append(alpaca_ds)
 
-        elif args.dataset == "synthetic":
-            from datasets import Dataset
-            ds = Dataset.from_list([
+        elif name == "synthetic":
+            samples = [
                 {"text": "# Task: Reverse a string\n# Solution:\ndef reverse_string(s): return s[::-1]"},
                 {"text": "# Task: Check palindrome\n# Solution:\ndef is_palindrome(s): return s==s[::-1]"},
-            ])
-            def preprocess(batch):
-                return tokenizer(batch["text"], truncation=True, padding="max_length", max_length=args.max_length, pad_to_multiple_of = 8)
-            ds = ds.map(preprocess)
-            class SyntheticWrapper(IterableDataset):
-                def __iter__(self):
-                    for sample in ds:
-                        yield {k: torch.tensor(v) for k, v in sample.items() if k in ["input_ids", "attention_mask"]}
-            train_loader = DataLoader(SyntheticWrapper(), batch_size=args.batch_size)
+            ]
+            ds = HFDataset.from_list(samples)
 
-            processed_datasets.append(ds)
+            def preprocess_synth(batch):
+                tokenized = tokenizer(batch["text"], truncation=True, padding="max_length", max_length=args.max_length)
+                tokenized["labels"] = [list(ids) for ids in tokenized["input_ids"]]
+                return tokenized
 
-    merged = concatenate_datasets(processed_datasets)
+            ds = ds.map(preprocess_synth, batched=True)
+            synthetic_ds = ds
+            processed_datasets.append(synthetic_ds)
+
+        else:
+            raise ValueError(f"Unknown dataset name: {name}")
+
+    if len(processed_datasets) == 0:
+        raise ValueError("No datasets were processed. Check --dataset or --dataset_mix values.")
+
+    # concatenate all processed datasets
+    merged = concatenate_datasets(processed_datasets, axis=0)
+
+    # Ensure labels exist
+    if "labels" not in merged.column_names:
+        def add_labels(ex):
+            ex["labels"] = ex["input_ids"]
+            return ex
+        merged = merged.map(add_labels)
+
     merged.set_format(type="torch", columns=["input_ids", "attention_mask", "labels"])
     train_loader = DataLoader(
         merged,
@@ -292,20 +306,33 @@ def main():
         num_workers=4,
         pin_memory=True,
     )
-    
+
     # ------------------------
     # Optimizer + scheduler
     # ------------------------
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate)
     
-    total_steps = (len(train_loader) // args.gradient_accumulation) * args.epochs
+    # compute total steps properly (ceil division if needed)
+    steps_per_epoch = max(1, (len(train_loader) + args.gradient_accumulation - 1) // args.gradient_accumulation)
+    total_steps = steps_per_epoch * args.epochs
     warmup_steps = int(total_steps * args.warmup_ratio)
 
-    scheduler = get_linear_schedule_with_warmup(
-        optimizer,
-        num_warmup_steps=warmup_steps,
-        num_training_steps=total_steps,
-    )
+    if args.lr_scheduler == "linear":
+        scheduler = get_scheduler(
+            name="linear",
+            optimizer=optimizer,
+            num_warmup_steps=warmup_steps,
+            num_training_steps=total_steps,
+        )
+    elif args.lr_scheduler == "cosine":
+        scheduler = get_scheduler(
+            name="cosine",
+            optimizer=optimizer,
+            num_warmup_steps=warmup_steps,
+            num_training_steps=total_steps,
+        )
+    else:
+        raise ValueError(f"Unsupported lr_scheduler: {args.lr_scheduler}")
 
     # ------------------------
     # Resume from checkpoint if specified
@@ -317,16 +344,24 @@ def main():
     if args.resume_from:
         checkpoint_state = load_checkpoint(args.resume_from)
         if checkpoint_state:
-            optimizer.load_state_dict(checkpoint_state["optimizer_state"])
-            scheduler.load_state_dict(checkpoint_state["scheduler_state"])
+            opt_state = checkpoint_state.get("optimizer_state")
+            sched_state = checkpoint_state.get("scheduler_state")
+            if opt_state is not None:
+                optimizer.load_state_dict(opt_state)
+            if sched_state is not None:
+                try:
+                    scheduler.load_state_dict(sched_state)
+                except Exception:
+                    if is_main:
+                        print("⚠️ Could not load scheduler state (incompatible shapes). Continuing without loading scheduler state.")
             start_epoch = checkpoint_state["epoch"]
             start_step = checkpoint_state["step"]
             resumed_metrics = checkpoint_state.get("metrics", {})
             if is_main:
                 print(f"✅ Resumed from epoch {start_epoch}, step {start_step}")
 
-    # Prepare for distributed training
-    model, optimizer, scheduler, train_loader = accelerator.prepare(model, optimizer, scheduler, train_loader)
+    # Prepare for distributed training: prepare model, optimizer, dataloader
+    model, optimizer, train_loader = accelerator.prepare(model, optimizer, train_loader)
 
     # ------------------------
     # Training loop
@@ -383,8 +418,8 @@ def main():
             steps_done = step + 1
             avg_step_time = elapsed / steps_done
             if not is_iterable:
-                total_steps = len(train_loader)
-                steps_left = total_steps - (step + 1)
+                total_steps_local = len(train_loader)
+                steps_left = total_steps_local - (step + 1)
                 eta_sec = avg_step_time * steps_left
             else:
                 eta_sec = avg_step_time * (step + 1)
@@ -392,9 +427,14 @@ def main():
             eta_str = str(timedelta(seconds=int(eta_sec)))
 
             if is_main:
+                # scheduler might be on CPU; get_last_lr may not be available until warmup; handle safely
+                try:
+                    lr_val = scheduler.get_last_lr()[0]
+                except Exception:
+                    lr_val = args.learning_rate
                 progress_bar.set_postfix({
                     "loss": f"{smoothed_loss:.4f}", 
-                    "lr": f"{scheduler.get_last_lr()[0]:.2e}",
+                    "lr": f"{lr_val:.2e}",
                     "step": global_step,
                     "ETA": eta_str
                 })
@@ -403,15 +443,15 @@ def main():
             if (step + 1) % args.gradient_accumulation == 0:
                 # CRITICAL: Clip gradients before optimizer step
                 if args.max_grad_norm > 0:
-                    accelerator.clip_grad_norm_(model.parameters(), args.max_grad_norm)
-                
+                    try:
+                        accelerator.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+                    except Exception:
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+
                 optimizer.step()
                 optimizer.zero_grad()
                 scheduler.step()
                 global_step += 1
-
-
-
 
                 # Save periodic checkpoints
                 if args.save_every > 0 and global_step % args.save_every == 0:
@@ -421,7 +461,7 @@ def main():
                         "current_loss": running_loss / max(steps_done, 1)
                     }
                     save_checkpoint(accelerator, model, tokenizer, optimizer, 
-                                  epoch, global_step, args.output_dir, metrics,
+                                  scheduler, epoch, global_step, args.output_dir, metrics,
                                   keep_last_n=args.keep_last_n_checkpoints)
 
             if args.dry_run and step > 200:
@@ -445,7 +485,7 @@ def main():
                 "current_loss": avg_loss
             }
             save_checkpoint(accelerator, model, tokenizer, optimizer,
-                          epoch, global_step, args.output_dir, metrics,
+                          scheduler, epoch, global_step, args.output_dir, metrics,
                           keep_last_n=args.keep_last_n_checkpoints)
 
     # ------------------------
@@ -454,7 +494,7 @@ def main():
     total_time = time.time() - start_time
     metrics = {
         "model": args.model_id,
-        "dataset": args.dataset,
+        "dataset": dataset_arg,
         "epochs": args.epochs,
         "batch_size": args.batch_size,
         "gradient_accumulation": args.gradient_accumulation,
