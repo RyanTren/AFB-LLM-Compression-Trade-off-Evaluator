@@ -7,8 +7,9 @@ import json
 import torch
 import matplotlib.pyplot as plt
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import get_linear_schedule_with_warmup
 from peft import LoraConfig, get_peft_model
-from datasets import load_dataset
+from datasets import load_dataset, concatenate_datasets
 from accelerate import Accelerator
 from torch.utils.data import DataLoader, IterableDataset
 from torch.utils.data.dataloader import default_collate
@@ -29,7 +30,8 @@ def parse_args():
     p.add_argument("--max_length", type=int, default=128)
     p.add_argument("--learning_rate", type=float, default=1e-5)
     p.add_argument("--max_grad_norm", type=float, default=1.0)
-    p.add_argument("--dataset", type=str, default="codeparrot",
+    p.add_argument("--warmup_ratio", type=float, default=0.05)
+    p.add_argument("--dataset", type=str, default="code_alpaca,codeparrot",
                    choices=["synthetic", "codeparrot", "iamtarun/python_code_instructions_18k_alpaca"])
     p.add_argument("--save_every", type=int, default=0,
                    help="Save checkpoint every N steps (0=disabled)")
@@ -43,7 +45,7 @@ def parse_args():
 # ------------------------
 # Checkpoint management
 # ------------------------
-def save_checkpoint(accelerator, model, tokenizer, optimizer, epoch, step, output_dir, 
+def save_checkpoint(accelerator, model, tokenizer, optimizer, scheduler, epoch, step, output_dir, 
                    metrics, keep_last_n=3):
     """Save training checkpoint with state"""
     if not accelerator.is_main_process:
@@ -62,6 +64,7 @@ def save_checkpoint(accelerator, model, tokenizer, optimizer, epoch, step, outpu
         "epoch": epoch,
         "step": step,
         "optimizer_state": optimizer.state_dict(),
+        "scheduler_state": scheduler.state_dict(),
         "metrics": metrics,
     }
     torch.save(state, os.path.join(ckpt_dir, "training_state.pt"))
@@ -167,112 +170,142 @@ def main():
     # ------------------------
     # Dataset loading & filtering
     # ------------------------
-    if args.dataset == "codeparrot":
-        if is_main:
-            print("📘 Streaming CodeParrot dataset...")
-        ds_stream = load_dataset("codeparrot/codeparrot-clean", split="train", streaming=True)
+    dataset_names = [d.strip() for d in args.dataset.split(",")]
+    processed_datasets = []
+
+    for name in dataset_names:
+
+        if args.dataset and name == "codeparrot":
+            if is_main:
+                print("📘 Streaming CodeParrot dataset...")
+            ds_stream = load_dataset("codeparrot/codeparrot-clean", split="train", streaming=True)
 
 
-        if args.dry_run:
-            ds_stream = ds_stream.take(500)
+            if args.dry_run:
+                ds_stream = ds_stream.take(500)
 
-        def filter_and_format(batch):
-            text = batch.get("content", "")
-            if len(text.split("\n")) > 50:
-                text = ""
-            lines = [l for l in text.split("\n")
-                    if not l.strip().startswith("Copyright")
-                    and not l.strip().startswith("Author")
-                    and not l.strip().startswith("# This program is free")]
-            if not lines:
-                text = ""
-            else:
-                text = "\n".join(lines)
-            formatted_text = f"# Task:\n{text}\n# Solution:\n"
-            return tokenizer(formatted_text, truncation=True, padding="max_length", max_length=args.max_length)
+            def filter_and_format(batch):
+                text = batch.get("content", "")
+                if len(text.split("\n")) > 50:
+                    text = ""
+                lines = [l for l in text.split("\n")
+                        if not l.strip().startswith("Copyright")
+                        and not l.strip().startswith("Author")
+                        and not l.strip().startswith("# This program is free")]
+                if not lines:
+                    text = ""
+                else:
+                    text = "\n".join(lines)
+                formatted_text = f"# Task:\n{text}\n# Solution:\n"
+                return tokenizer(formatted_text, truncation=True, padding="max_length", max_length=args.max_length)
 
-        ds_stream = ds_stream.map(filter_and_format)
-        ds_stream = ds_stream.filter(lambda x: len(x["input_ids"]) > 0)
+            ds_stream = ds_stream.map(filter_and_format)
+            ds_stream = ds_stream.filter(lambda x: len(x["input_ids"]) > 0)
 
-        # Take exactly 2500 samples for training
-        samples_to_take = 2500 if not args.dry_run else 500
-        
-        class StreamWrapper(IterableDataset):
-            def __init__(self, stream, max_samples):
-                self.stream = stream
-                self.max_samples = max_samples
-                
-            def __iter__(self):
-                count = 0
-                for sample in self.stream:
-                    if count >= self.max_samples:
-                        break
-                    yield {k: torch.tensor(v) for k, v in sample.items() if k in ["input_ids", "attention_mask"]}
-                    count += 1
+            # Take exactly 2500 samples for training
+            samples_to_take = 2500 if not args.dry_run else 500
+            
+            class StreamWrapper(IterableDataset):
+                def __init__(self, stream, max_samples):
+                    self.stream = stream
+                    self.max_samples = max_samples
+                    
+                def __iter__(self):
+                    count = 0
+                    for sample in self.stream:
+                        if count >= self.max_samples:
+                            break
+                        yield {k: torch.tensor(v) for k, v in sample.items() if k in ["input_ids", "attention_mask"]}
+                        count += 1
 
-        train_loader = DataLoader(
-            StreamWrapper(ds_stream, samples_to_take), 
-            batch_size=args.batch_size,
-            num_workers=4,
-            prefetch_factor=2,
-            pin_memory=True,
-            collate_fn = default_collate
-        )
-
-    elif args.dataset == "iamtarun/python_code_instructions_18k_alpaca":
-        if is_main:
-            print("📘 Loading iamtarun/python_code_instructions_18k_alpaca dataset...")
-        ds = load_dataset("iamtarun/python_code_instructions_18k_alpaca", split="train")
-
-        if args.dry_run:
-            ds = ds.select(range(500))
-
-        def preprocess(batch):
-            inputs = [
-                f"### Instruction:\n{inst}\n### Response:\n{out}"
-                for inst, out in zip(batch["instruction"], batch["output"])
-            ]
-            model_inputs = tokenizer(
-                inputs,
-                truncation=True,
-                padding="max_length",
-                max_length=args.max_length,
+            train_loader = DataLoader(
+                StreamWrapper(ds_stream, samples_to_take), 
+                batch_size=args.batch_size,
+                num_workers=4,
+                prefetch_factor=2,
+                pin_memory=True,
+                collate_fn = default_collate
             )
 
-            # Create labels
-            model_inputs["labels"] = model_inputs["input_ids"].copy()
-            return model_inputs
+            processed_datasets.append(codeparrot_ds)
 
-        ds = ds.map(preprocess, batched=True, num_proc=4, remove_columns=ds.column_names)
-        ds.set_format(type="torch", columns=["input_ids", "attention_mask", "labels"])
-        
-        train_loader = DataLoader(
-            ds,
-            batch_size=args.batch_size,
-            shuffle=True,
-            num_workers=4,
-            pin_memory=True,
-        )
+        elif args.dataset == "iamtarun/python_code_instructions_18k_alpaca":
+            if is_main:
+                print("📘 Loading iamtarun/python_code_instructions_18k_alpaca dataset...")
+            ds = load_dataset("iamtarun/python_code_instructions_18k_alpaca", split="train")
 
-    elif args.dataset == "synthetic":
-        from datasets import Dataset
-        ds = Dataset.from_list([
-            {"text": "# Task: Reverse a string\n# Solution:\ndef reverse_string(s): return s[::-1]"},
-            {"text": "# Task: Check palindrome\n# Solution:\ndef is_palindrome(s): return s==s[::-1]"},
-        ])
-        def preprocess(batch):
-            return tokenizer(batch["text"], truncation=True, padding="max_length", max_length=args.max_length, pad_to_multiple_of = 8)
-        ds = ds.map(preprocess)
-        class SyntheticWrapper(IterableDataset):
-            def __iter__(self):
-                for sample in ds:
-                    yield {k: torch.tensor(v) for k, v in sample.items() if k in ["input_ids", "attention_mask"]}
-        train_loader = DataLoader(SyntheticWrapper(), batch_size=args.batch_size)
+            if args.dry_run:
+                ds = ds.select(range(500))
 
+            def preprocess(batch):
+                inputs = [
+                    f"### Instruction:\n{inst}\n### Response:\n{out}"
+                    for inst, out in zip(batch["instruction"], batch["output"])
+                ]
+                model_inputs = tokenizer(
+                    inputs,
+                    truncation=True,
+                    padding="max_length",
+                    max_length=args.max_length,
+                )
+
+                # Create labels
+                model_inputs["labels"] = model_inputs["input_ids"].copy()
+                return model_inputs
+
+            ds = ds.map(preprocess, batched=True, num_proc=4, remove_columns=ds.column_names)
+            ds.set_format(type="torch", columns=["input_ids", "attention_mask", "labels"])
+            
+            train_loader = DataLoader(
+                ds,
+                batch_size=args.batch_size,
+                shuffle=True,
+                num_workers=4,
+                pin_memory=True,
+            )
+
+            processed_datasets.append(alpaca_ds)
+
+        elif args.dataset == "synthetic":
+            from datasets import Dataset
+            ds = Dataset.from_list([
+                {"text": "# Task: Reverse a string\n# Solution:\ndef reverse_string(s): return s[::-1]"},
+                {"text": "# Task: Check palindrome\n# Solution:\ndef is_palindrome(s): return s==s[::-1]"},
+            ])
+            def preprocess(batch):
+                return tokenizer(batch["text"], truncation=True, padding="max_length", max_length=args.max_length, pad_to_multiple_of = 8)
+            ds = ds.map(preprocess)
+            class SyntheticWrapper(IterableDataset):
+                def __iter__(self):
+                    for sample in ds:
+                        yield {k: torch.tensor(v) for k, v in sample.items() if k in ["input_ids", "attention_mask"]}
+            train_loader = DataLoader(SyntheticWrapper(), batch_size=args.batch_size)
+
+            processed_datasets.append(ds)
+
+    merged = concatenate_datasets(processed_datasets)
+    merged.set_format(type="torch", columns=["input_ids", "attention_mask", "labels"])
+    train_loader = DataLoader(
+        merged,
+        batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=4,
+        pin_memory=True,
+    )
+    
     # ------------------------
-    # Optimizer
+    # Optimizer + scheduler
     # ------------------------
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate)
+    
+    total_steps = (len(train_loader) // args.gradient_accumulation) * args.epochs
+    warmup_steps = int(total_steps * args.warmup_ratio)
+
+    scheduler = get_linear_schedule_with_warmup(
+        optimizer,
+        num_warmup_steps=warmup_steps,
+        num_training_steps=total_steps,
+    )
 
     # ------------------------
     # Resume from checkpoint if specified
@@ -285,6 +318,7 @@ def main():
         checkpoint_state = load_checkpoint(args.resume_from)
         if checkpoint_state:
             optimizer.load_state_dict(checkpoint_state["optimizer_state"])
+            scheduler.load_state_dict(checkpoint_state["scheduler_state"])
             start_epoch = checkpoint_state["epoch"]
             start_step = checkpoint_state["step"]
             resumed_metrics = checkpoint_state.get("metrics", {})
@@ -292,7 +326,7 @@ def main():
                 print(f"✅ Resumed from epoch {start_epoch}, step {start_step}")
 
     # Prepare for distributed training
-    model, optimizer, train_loader = accelerator.prepare(model, optimizer, train_loader)
+    model, optimizer, scheduler, train_loader = accelerator.prepare(model, optimizer, scheduler, train_loader)
 
     # ------------------------
     # Training loop
@@ -360,6 +394,7 @@ def main():
             if is_main:
                 progress_bar.set_postfix({
                     "loss": f"{smoothed_loss:.4f}", 
+                    "lr": f"{scheduler.get_last_lr()[0]:.2e}",
                     "step": global_step,
                     "ETA": eta_str
                 })
@@ -372,7 +407,11 @@ def main():
                 
                 optimizer.step()
                 optimizer.zero_grad()
+                scheduler.step()
                 global_step += 1
+
+
+
 
                 # Save periodic checkpoints
                 if args.save_every > 0 and global_step % args.save_every == 0:

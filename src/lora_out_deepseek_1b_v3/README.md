@@ -28,14 +28,29 @@ accelerate launch --num_processes 4 --multi_gpu --mixed_precision fp16 scripts/d
 --save_every 500 --keep_last_n_checkpoints 3
 ```
 
+Tweaked Launch Command for V3 part 2
+```bash
+accelerate launch --num_processes 4 --multi_gpu --mixed_precision fp16 \
+  scripts/deepseek_coder1B_train_lora.py \
+  --model_id deepseek-ai/deepseek-coder-1b-base \
+  --output_dir lora_out_deepseek_1b_v4 \
+  --epochs 5 \
+  --batch_size 2 \
+  --gradient_accumulation 8 \
+  --learning_rate 2e-5 \
+  --max_length 128 \
+  --dataset iamtarun/python_code_instructions_18k_alpaca \
+  --save_every 500 \
+  --keep_last_n_checkpoints 3
 
-- **Developed by:** [More Information Needed]
-- **Funded by [optional]:** [More Information Needed]
-- **Shared by [optional]:** [More Information Needed]
-- **Model type:** [More Information Needed]
-- **Language(s) (NLP):** [More Information Needed]
+```
+
+
+- **Developed by:** [Ryan Tran]
+- **Model type:** [LoRA/PEFT Trained - Deepseek Coder 1B]
+- **Language(s) (NLP):** [Python Code Generation]
 - **License:** [More Information Needed]
-- **Finetuned from model [optional]:** [More Information Needed]
+- **Finetuned from model [optional]:** [Deepseek Coder 1B]
 
 ### Model Sources [optional]
 
@@ -71,19 +86,20 @@ accelerate launch --num_processes 4 --multi_gpu --mixed_precision fp16 scripts/d
 
 <!-- This section is meant to convey both technical and sociotechnical limitations. -->
 
-[More Information Needed]
+
+* From v3 and v3 part 2, the outputs still look similar due to repetitve generations specifically for palindrome and the model is still "instruction-following" but not aware of session context. 
+
+* The dataset ``iamtarun/python_code_instructions_18k_alpaca`` has very short, simple tasks. It’s good for alignment but not for teaching reasoning, docstrings, or generalization. So even if I train for 5 epochs, the model is just memorizing those same basic code templates.
 
 ### Recommendations
 
 <!-- This section is meant to convey recommendations with respect to the bias, risk, and technical limitations. -->
 
-Users (both direct and downstream) should be made aware of the risks, biases and limitations of the model. More information needed for further recommendations.
+* Look into mixing/replacing the dataset with ``codeparrot/codecomplex`` or ``huggingface/CodeAlpaca-20k``
 
-## How to Get Started with the Model
+* Trainable Params (LoRA Rank) might be too small
 
-Use the code below to get started with the model.
 
-[More Information Needed]
 
 ## Training Details
 
