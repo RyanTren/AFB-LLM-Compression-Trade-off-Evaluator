@@ -1,0 +1,119 @@
+(llamaenv) pranavkartha@fedora:~/llama3$ torchrun --nproc_per_node 1 example_text_completion.py --ckpt_dir /home/pranavkartha/llama3/Llama3.2-1B --tokenizer_path /home/pranavkartha/llama3/Llama3.2-1B/tokenizer.model --max_seq_len 128 --max_batch_size 4
+> initializing model parallel with size 1
+> initializing ddp with size 1
+> initializing pipeline with size 1
+/home/pranavkartha/miniconda3/envs/llamaenv/lib/python3.13/site-packages/torch/__init__.py:1264: UserWarning: torch.set_default_tensor_type() is deprecated as of PyTorch 2.1, please use torch.set_default_dtype() and torch.set_default_device() as alternatives. (Triggered internally at /pytorch/torch/csrc/tensor/python_tensor.cpp:434.)
+  _C._set_default_tensor_type(t)
+Loaded in 0.93 seconds
+Without using libraries, in python, create a script that sorts an array in alphabetical order 
+> 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22
+
+==================================
+
+[rank0]:[W1103 22:35:48.166220241 ProcessGroupNCCL.cpp:1538] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+(llamaenv) pranavkartha@fedora:~/llama3$ torchrun --nproc_per_node 1 example_text_completion.py --ckpt_dir /home/pranavkartha/llama3/Llama3.2-1B --tokenizer_path /home/pranavkartha/llama3/Llama3.2-1B/tokenizer.model --max_seq_len 128 --max_batch_size 4
+> initializing model parallel with size 1
+> initializing ddp with size 1
+> initializing pipeline with size 1
+/home/pranavkartha/miniconda3/envs/llamaenv/lib/python3.13/site-packages/torch/__init__.py:1264: UserWarning: torch.set_default_tensor_type() is deprecated as of PyTorch 2.1, please use torch.set_default_dtype() and torch.set_default_device() as alternatives. (Triggered internally at /pytorch/torch/csrc/tensor/python_tensor.cpp:434.)
+  _C._set_default_tensor_type(t)
+Loaded in 0.95 seconds
+Without using libraries, in python, reverse a string
+> . Here’s the code for reverse a string in python.
+String reversed = String reversed = reversed + String
+String reversed = String reversed = reversed + String
+In the above code, we first initialize the string reversed with the empty string. Then we initialize the string reversed with the input string. Next, we initialize the
+
+==================================
+
+[rank0]:[W1103 22:36:22.859560034 ProcessGroupNCCL.cpp:1538] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+(llamaenv) pranavkartha@fedora:~/llama3$ torchrun --nproc_per_node 1 example_text_completion.py --ckpt_dir /home/pranavkartha/llama3/Llama3.2-1B --tokenizer_path /home/pranavkartha/llama3/Llama3.2-1B/tokenizer.model --max_seq_len 128 --max_batch_size 4
+> initializing model parallel with size 1
+> initializing ddp with size 1
+> initializing pipeline with size 1
+/home/pranavkartha/miniconda3/envs/llamaenv/lib/python3.13/site-packages/torch/__init__.py:1264: UserWarning: torch.set_default_tensor_type() is deprecated as of PyTorch 2.1, please use torch.set_default_dtype() and torch.set_default_device() as alternatives. (Triggered internally at /pytorch/torch/csrc/tensor/python_tensor.cpp:434.)
+  _C._set_default_tensor_type(t)
+Loaded in 0.95 seconds
+Without using libraries, in python, check if a string is a palindrome
+>  or not
+
+I have a string and I want to check if it is a palindrome or not. I am using the following code:
+
+import re
+def is_palindrome(string):
+    return re.sub('[^a-zA-Z]', '', string).lower() == string.lower()
+
+
+If I give it a string like "A
+
+==================================
+
+[rank0]:[W1103 22:38:40.893150197 ProcessGroupNCCL.cpp:1538] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+(llamaenv) pranavkartha@fedora:~/llama3$ torchrun --nproc_per_node 1 example_text_completion.py --ckpt_dir /home/pranavkartha/llama3/Llama3.2-1B --tokenizer_path /home/pranavkartha/llama3/Llama3.2-1B/tokenizer.model --max_seq_len 128 --max_batch_size 4
+> initializing model parallel with size 1
+> initializing ddp with size 1
+> initializing pipeline with size 1
+/home/pranavkartha/miniconda3/envs/llamaenv/lib/python3.13/site-packages/torch/__init__.py:1264: UserWarning: torch.set_default_tensor_type() is deprecated as of PyTorch 2.1, please use torch.set_default_dtype() and torch.set_default_device() as alternatives. (Triggered internally at /pytorch/torch/csrc/tensor/python_tensor.cpp:434.)
+  _C._set_default_tensor_type(t)
+Loaded in 0.93 seconds
+without using libraries, in python, count the vowels and consonants in a string
+> 
+
+I tried the following code
+
+import re
+def vowels(string):
+    vowel = ["a","e","i","o","u"]
+    count = 0
+    for i in string:
+        if i in vowel:
+            count += 1
+    return count
+print(vowels("hello world"))
+
+
+
+==================================
+
+[rank0]:[W1103 22:39:53.177208112 ProcessGroupNCCL.cpp:1538] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+(llamaenv) pranavkartha@fedora:~/llama3$ torchrun --nproc_per_node 1 example_text_completion.py --ckpt_dir /home/pranavkartha/llama3/Llama3.2-1B --tokenizer_path /home/pranavkartha/llama3/Llama3.2-1B/tokenizer.model --max_seq_len 128 --max_batch_size 4
+> initializing model parallel with size 1
+> initializing ddp with size 1
+> initializing pipeline with size 1
+/home/pranavkartha/miniconda3/envs/llamaenv/lib/python3.13/site-packages/torch/__init__.py:1264: UserWarning: torch.set_default_tensor_type() is deprecated as of PyTorch 2.1, please use torch.set_default_dtype() and torch.set_default_device() as alternatives. (Triggered internally at /pytorch/torch/csrc/tensor/python_tensor.cpp:434.)
+  _C._set_default_tensor_type(t)
+Loaded in 0.94 seconds
+without using libraries, in python, remove duplicate characters from a string
+> 
+
+I want to remove duplicate characters from a string in python without using libraries.
+
+I have tried this code:
+
+string = "I am a python programmer"
+string = string.replace("a", "")
+string = string.replace("b", "")
+string = string.replace("c", "")
+string = string.replace("d", "")
+string
+
+==================================
+
+[rank0]:[W1103 22:40:29.281813056 ProcessGroupNCCL.cpp:1538] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+(llamaenv) pranavkartha@fedora:~/llama3$ torchrun --nproc_per_node 1 example_text_completion.py --ckpt_dir /home/pranavkartha/llama3/Llama3.2-1B --tokenizer_path /home/pranavkartha/llama3/Llama3.2-1B/tokenizer.model --max_seq_len 128 --max_batch_size 4
+> initializing model parallel with size 1
+> initializing ddp with size 1
+> initializing pipeline with size 1
+/home/pranavkartha/miniconda3/envs/llamaenv/lib/python3.13/site-packages/torch/__init__.py:1264: UserWarning: torch.set_default_tensor_type() is deprecated as of PyTorch 2.1, please use torch.set_default_dtype() and torch.set_default_device() as alternatives. (Triggered internally at /pytorch/torch/csrc/tensor/python_tensor.cpp:434.)
+  _C._set_default_tensor_type(t)
+Loaded in 0.93 seconds
+without using libraries, in python, compress a string using run length encoding
+>  and write it to a file.
+
+## run length encoding
+
+Run length encoding (RLE) is a method of data compression that uses a sequence of runs of a fixed length to represent a data stream. In RLE, the number of occurrences of each character in a string is counted. Then, the count of each
+
+==================================
+
+[rank0]:[W1103 22:41:15.915400286 ProcessGroupNCCL.cpp:1538] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
