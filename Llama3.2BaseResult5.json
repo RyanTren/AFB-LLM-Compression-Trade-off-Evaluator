@@ -1,0 +1,10 @@
+#I want to remove duplicate characters from a string in python without using libraries.
+
+#I have tried this code:
+
+string = "I am a python programmer"
+string = string.replace("a", "")
+string = string.replace("b", "")
+string = string.replace("c", "")
+string = string.replace("d", "")
+string
