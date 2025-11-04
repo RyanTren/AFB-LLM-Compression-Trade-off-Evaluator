@@ -1,0 +1,8 @@
+#I have a string and I want to check if it is a palindrome or not. I am using the following code:
+
+import re
+def is_palindrome(string):
+    return re.sub('[^a-zA-Z]', '', string).lower() == string.lower()
+
+
+#If I give it a string like "A
