@@ -9,10 +9,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 \
 RUN apt-get update && apt-get install -y --no-install-recommends tini ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY ServingContainerRequirements.txt .
 RUN pip install -U pip && pip install --no-cache-dir -r ServingContainerRequirements.txt
 
-COPY main.py .
+COPY serve.py /app/main.py
 
 # Model gets mounted at /models (see docker run); do not bake weights into the image
 ENV MODEL_PATH=/models
