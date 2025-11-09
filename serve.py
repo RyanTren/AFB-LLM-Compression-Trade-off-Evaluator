@@ -42,15 +42,15 @@ def health():
 
 @app.post("/generate", response_model=GenResponse)
 def generate(req: GenRequest):
-    inputs = tokenizer(req.prompt, return_tensors="pt").to(model.device)
-    with torch.no_grad():
+    inputs = tokenizer(req.prompt, return_tensors="pt").to(DEVICE)
+    with torch.inference_mode():
         out_tokens = model.generate(
             **inputs,
             do_sample=True,
             max_new_tokens=req.max_new_tokens,
             temperature=req.temperature,
             top_p=req.top_p,
-            pad_token_id=tokenizer.eos_token_id,
+            pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
             eos_token_id=tokenizer.eos_token_id,
         )
     text = tokenizer.decode(out_tokens[0], skip_special_tokens=True)
