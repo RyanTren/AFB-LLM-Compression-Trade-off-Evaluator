@@ -10,8 +10,11 @@ import streamlit as st
 
 # ---------- Config ----------
 API_URL_DEFAULT = "http://localhost:8000/generate"  # server is on the same VM
-CODEBLEU_DIR = str(Path("~/home/p10-t1llmcomp/CodeBLEU").expanduser())
+
+# Prefer environment variable; otherwise fall back to ~/CodeBLEU
+CODEBLEU_DIR = os.getenv("CODEBLEU_DIR", str(Path("~/CodeBLEU").expanduser()))
 CALC_SCRIPT = str(Path(CODEBLEU_DIR) / "calc_code_bleu.py")
+
 SPLIT_TOKEN = "<END_OF_SNIPPET>"
 # ----------------------------
 
@@ -32,8 +35,15 @@ with st.sidebar:
     st.header("Batching")
     limit = st.number_input("Evaluate first N examples (0 = all)", 0, 100000, 50)
 
-st.write("**Instructions**: The app will call your `/generate` API for each prompt, write references & "
-         "hypotheses to temp files, then invoke the CodeXGLUE `calc_code_bleu.py` script and visualize results.")
+    st.header("Scoring")
+    # Auto-detect if a compiled parser exists; let the user override
+    default_has_parser = Path(CODEBLEU_DIR).joinpath("parser", "my-languages.so").exists()
+    include_syntax = st.checkbox("Include syntax & data-flow (requires parser)", value=default_has_parser)
+
+st.write(
+    "**Instructions**: The app calls your `/generate` API for each prompt, writes references & hypotheses to temp files, "
+    "then invokes the CodeBLEU `calc_code_bleu.py` script and visualizes results."
+)
 
 def load_examples(p):
     items = []
@@ -57,8 +67,18 @@ if run_eval:
         st.error(f"Eval file not found: {jsonl_path}")
         st.stop()
     if not Path(CALC_SCRIPT).exists():
-        st.error(f"CodeBLEU script not found at {CALC_SCRIPT}. Clone CodeXGLUE to {CODEBLEU_DIR}.")
+        st.error(f"CodeBLEU script not found at {CALC_SCRIPT}. "
+                 f"Set CODEBLEU_DIR or place calc_code_bleu.py there.")
         st.stop()
+
+    # Figure out whether this CodeBLEU uses --ref or --refs
+    ref_flag = "--refs"
+    try:
+        help_out = subprocess.run(["python", CALC_SCRIPT, "-h"], capture_output=True, text=True)
+        if "--refs" not in help_out.stdout and "--refs" not in help_out.stderr:
+            ref_flag = "--ref"
+    except Exception:
+        pass
 
     exs = load_examples(jsonl_path)
     if limit and limit > 0:
@@ -67,7 +87,7 @@ if run_eval:
 
     # Generate
     refs, hyps, rows = [], [], []
-    pb = st.progress(0)
+    pb = st.progress(0.0)
     for i, ex in enumerate(exs, 1):
         prompt = ex["prompt"]
         ref = ex["reference"]
@@ -93,31 +113,41 @@ if run_eval:
                 rf.write(r + "\n" + SPLIT_TOKEN + "\n")
                 hf.write(h + "\n" + SPLIT_TOKEN + "\n")
 
-        # Run CodeBLEU (subprocess)
-        cmd = ["python", CALC_SCRIPT, "--refs", str(ref_p), "--hyp", str(hyp_p),
-               "--lang", lang, "--split_token", SPLIT_TOKEN]
+        # Build CodeBLEU command
+        cmd = ["python", CALC_SCRIPT, ref_flag, str(ref_p),
+               "--hyp", str(hyp_p), "--lang", lang, "--split_token", SPLIT_TOKEN]
+
+        # If we have no parser (or user unchecked), zero out syntax/data-flow weights
+        if not include_syntax:
+            cmd += ["--gamma", "0", "--theta", "0"]
+
         st.write("Running CodeBLEU…")
         out = subprocess.run(cmd, capture_output=True, text=True)
+        if out.returncode != 0:
+            st.error("CodeBLEU failed:\n\n" + (out.stderr or out.stdout))
+            st.stop()
+
         st.code(out.stdout + ("\n" + out.stderr if out.stderr else ""), language="text")
 
-        # Try to parse the four component scores if present
-        # (The script prints them; this parser is resilient to formatting.)
-        bleu, weighted, syntax, dataflow, codebleu = None, None, None, None, None
+        # Parse scores (best-effort; formats vary slightly between repos)
+        bleu = weighted = syntax = dataflow = codebleu = None
         for line in out.stdout.splitlines():
             t = line.strip().lower()
             if "bleu" in t and "weighted" not in t and bleu is None:
-                bleu = float(t.split()[-1])
+                try: bleu = float(t.split()[-1]); 
+                except: pass
             if "weighted ngram match" in t:
-                weighted = float(t.split()[-1])
+                try: weighted = float(t.split()[-1]); 
+                except: pass
             if "syntactic match" in t or "syntax match" in t:
-                syntax = float(t.split()[-1])
+                try: syntax = float(t.split()[-1]); 
+                except: pass
             if "dataflow match" in t:
-                dataflow = float(t.split()[-1])
+                try: dataflow = float(t.split()[-1]); 
+                except: pass
             if "codebleu" in t:
-                try:
-                    codebleu = float(t.split()[-1])
-                except: 
-                    pass
+                try: codebleu = float(t.split()[-1]); 
+                except: pass
 
         # Visualize
         st.subheader("Scores")
