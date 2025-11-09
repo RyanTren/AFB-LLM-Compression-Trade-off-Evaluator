@@ -10,7 +10,7 @@ import streamlit as st
 
 # ---------- Config ----------
 API_URL_DEFAULT = "http://localhost:8000/generate"  # server is on the same VM
-CODEBLEU_DIR = str(Path("~/CodeXGLUE/Code-Code/CodeBLEU").expanduser())
+CODEBLEU_DIR = str(Path("~/home/p10-t1llmcomp/CodeBLEU").expanduser())
 CALC_SCRIPT = str(Path(CODEBLEU_DIR) / "calc_code_bleu.py")
 SPLIT_TOKEN = "<END_OF_SNIPPET>"
 # ----------------------------
