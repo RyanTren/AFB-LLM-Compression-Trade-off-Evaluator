@@ -21,6 +21,28 @@ model = AutoGPTQForCausalLM.from_quantized(
 tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, use_fast=True)
 print("[BOOT] Model loaded.")
 
+load_kwargs = dict(
+    device=DEVICE,
+    use_triton=False,
+    use_safetensors=True,
+)
+
+try:
+    # Newer AutoGPTQ (e.g., 0.5.x/0.6.x) – preferred flags
+    model = AutoGPTQForCausalLM.from_quantized(
+        MODEL_PATH,
+        inject_fused_attention=False,
+        inject_fused_mlp=False,
+        **load_kwargs
+    )
+except TypeError:
+    # Older API variants used "no_inject_fused_attention"
+    model = AutoGPTQForCausalLM.from_quantized(
+        MODEL_PATH,
+        no_inject_fused_attention=True,
+        **load_kwargs
+    )
+
 # ---- Schemas ----
 class GenRequest(BaseModel):
     prompt: str
