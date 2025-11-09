@@ -10,7 +10,11 @@ transformers==4.36.2
 tokenizers==0.15.2
 accelerate==0.24.1
 <<<<<<< HEAD
+<<<<<<< HEAD
 datasets==2.14.6
+=======
+datasets==2.19.0
+>>>>>>> 93a5122683c498313aebfd2af85cce5f06e2da9b
 pyarrow==14.0.2
 fsspec==2023.10.0
 =======
