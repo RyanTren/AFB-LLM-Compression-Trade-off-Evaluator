@@ -1,34 +1,26 @@
 import os
-from fastapi import FastAPI
-from pydantic import BaseModel
-from auto_gptq import AutoGPTQForCausalLM
-from transformers import AutoTokenizer
 import torch
+from fastapi import FastAPI
+from pydantic import BaseModel, Field
+from transformers import AutoTokenizer
+from auto_gptq import AutoGPTQForCausalLM
 
-MODEL_PATH = os.getenv("MODEL_PATH", "/models")  # mount your quantized folder here
+MODEL_PATH = os.getenv("MODEL_PATH", "/models")
 DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 app = FastAPI(title="LLM Serving (GPTQ 4-bit)", version="1.0")
 
 # ---- Load once at startup ----
 print(f"[BOOT] Loading model from {MODEL_PATH} on {DEVICE} …")
-model = AutoGPTQForCausalLM.from_quantized(
-    MODEL_PATH,
-    device=DEVICE,
-    use_safetensors=True,
-    use_triton=False,        # important for Tesla M40 (Maxwell)
-)
-tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, use_fast=True)
-print("[BOOT] Model loaded.")
 
 load_kwargs = dict(
     device=DEVICE,
-    use_triton=False,
+    use_triton=False,     # correct path for older GPUs (no exllama/triton)
     use_safetensors=True,
 )
 
 try:
-    # Newer AutoGPTQ (e.g., 0.5.x/0.6.x) – preferred flags
+    # Preferred flags on newer AutoGPTQ (0.5.x/0.6.x)
     model = AutoGPTQForCausalLM.from_quantized(
         MODEL_PATH,
         inject_fused_attention=False,
@@ -36,19 +28,22 @@ try:
         **load_kwargs
     )
 except TypeError:
-    # Older API variants used "no_inject_fused_attention"
+    # Back-compat for older API name
     model = AutoGPTQForCausalLM.from_quantized(
         MODEL_PATH,
         no_inject_fused_attention=True,
         **load_kwargs
     )
 
+tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, use_fast=True)
+print("[BOOT] Model loaded.")
+
 # ---- Schemas ----
 class GenRequest(BaseModel):
-    prompt: str
-    max_new_tokens: int = 128
-    temperature: float = 0.7
-    top_p: float = 0.95
+    prompt: str = Field(min_length=1)
+    max_new_tokens: int = Field(default=128, ge=1, le=512)
+    temperature: float = Field(default=0.7, ge=0.0, le=2.0)
+    top_p: float = Field(default=0.95, ge=0.0, le=1.0)
 
 class GenResponse(BaseModel):
     response: str
@@ -76,6 +71,6 @@ def generate(req: GenRequest):
             eos_token_id=tokenizer.eos_token_id,
         )
     text = tokenizer.decode(out_tokens[0], skip_special_tokens=True)
-    # return only the completion after the prompt
+    # Return only the completion after the prompt
     completion = text[len(req.prompt):].lstrip()
     return GenResponse(response=completion)
