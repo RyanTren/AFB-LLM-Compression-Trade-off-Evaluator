@@ -9,7 +9,7 @@ PyYAML==6.0.2
 transformers==4.36.2
 tokenizers==0.15.2
 accelerate==0.24.1
-datasets==2.14.6
+datasets==2.19.0
 pyarrow==14.0.2
 fsspec==2023.10.0
 
