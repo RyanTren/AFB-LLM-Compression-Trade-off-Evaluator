@@ -3,18 +3,16 @@ import os
 import subprocess
 import tempfile
 from pathlib import Path
-
+import sys, re
 import pandas as pd
 import requests
 import streamlit as st
 
 # ---------- Config ----------
-API_URL_DEFAULT = "http://localhost:8000/generate"  # server is on the same VM
-
-# Prefer environment variable; otherwise fall back to ~/CodeBLEU
-CODEBLEU_DIR = os.getenv("CODEBLEU_DIR", str(Path("~/CodeBLEU").expanduser()))
+API_URL_DEFAULT = "http://localhost:8510/generate"
+# CodeXGLUE CodeBLEU location you discovered:
+CODEBLEU_DIR = str(Path("~/CodeXGLUE/Code-Code/code-to-code-trans/evaluator/CodeBLEU").expanduser())
 CALC_SCRIPT = str(Path(CODEBLEU_DIR) / "calc_code_bleu.py")
-
 SPLIT_TOKEN = "<END_OF_SNIPPET>"
 # ----------------------------
 
@@ -114,8 +112,18 @@ if run_eval:
                 hf.write(h + "\n" + SPLIT_TOKEN + "\n")
 
         # Build CodeBLEU command
-        cmd = ["python", CALC_SCRIPT, ref_flag, str(ref_p),
-               "--hyp", str(hyp_p), "--lang", lang, "--split_token", SPLIT_TOKEN]
+        cmd = [sys.executable, CALC_SCRIPT, "--refs", str(ref_p), "--hyp", str(hyp_p), "--lang", lang]
+        try:
+    help_txt = subprocess.run([sys.executable, CALC_SCRIPT, "-h"], capture_output=True, text=True, cwd=CODEBLEU_DIR).stdout.lower()
+    if "--split_token" in help_txt:
+        cmd += ["--split_token", SPLIT_TOKEN]
+except Exception:
+    pass
+
+st.write("Running CodeBLEU…")
+out = subprocess.run(cmd, capture_output=True, text=True, cwd=CODEBLEU_DIR)
+st.code(out.stdout + ("\n" + out.stderr if out.stderr else ""), language="text")
+
 
         # If we have no parser (or user unchecked), zero out syntax/data-flow weights
         if not include_syntax:
@@ -131,24 +139,19 @@ if run_eval:
 
         # Parse scores (best-effort; formats vary slightly between repos)
         bleu = weighted = syntax = dataflow = codebleu = None
-        for line in out.stdout.splitlines():
-            t = line.strip().lower()
-            if "bleu" in t and "weighted" not in t and bleu is None:
-                try: bleu = float(t.split()[-1]); 
-                except: pass
-            if "weighted ngram match" in t:
-                try: weighted = float(t.split()[-1]); 
-                except: pass
-            if "syntactic match" in t or "syntax match" in t:
-                try: syntax = float(t.split()[-1]); 
-                except: pass
-            if "dataflow match" in t:
-                try: dataflow = float(t.split()[-1]); 
-                except: pass
-            if "codebleu" in t:
-                try: codebleu = float(t.split()[-1]); 
-                except: pass
-
+for line in out.stdout.splitlines():
+    t = line.strip()
+    tl = t.lower()
+            if re.search(r'(^|\s)codebleu( score)?\s*[:=]\s*([0-9.]+)', tl):
+        codebleu = float(re.findall(r'([0-9.]+)\s*$', t)[-1])
+    elif re.search(r'(^|\s)weighted[\s-]*ngram match( score)?\s*[:=]\s*([0-9.]+)', tl):
+        weighted = float(re.findall(r'([0-9.]+)\s*$', t)[-1])
+    elif re.search(r'(^|\s)(syntactic|syntax) match( score)?\s*[:=]\s*([0-9.]+)', tl):
+        syntax = float(re.findall(r'([0-9.]+)\s*$', t)[-1])
+    elif re.search(r'(^|\s)dataflow match( score)?\s*[:=]\s*([0-9.]+)', tl):
+        dataflow = float(re.findall(r'([0-9.]+)\s*$', t)[-1])
+    elif re.search(r'(^|\s)bleu(\s*score)?\s*[:=]\s*([0-9.]+)', tl):
+        bleu = float(re.findall(r'([0-9.]+)\s*$', t)[-1])
         # Visualize
         st.subheader("Scores")
         score_rows = []
