@@ -9,17 +9,11 @@ PyYAML==6.0.2
 transformers==4.36.2
 tokenizers==0.15.2
 accelerate==0.24.1
-<<<<<<< HEAD
-<<<<<<< HEAD
-datasets==2.14.6
-=======
 datasets==2.19.0
->>>>>>> 93a5122683c498313aebfd2af85cce5f06e2da9b
 pyarrow==14.0.2
 fsspec==2023.10.0
-=======
 auto-gptq==0.5.1
->>>>>>> a7fe0c2 (WIP: docker/requirements updates)
+(WIP: docker/requirements updates)
 
 # AutoGPTQ wheels that match the above (no post1)
 auto-gptq==0.5.1
