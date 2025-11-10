@@ -19,9 +19,15 @@ st.sidebar.header("⚙️ Training Configuration")
 model_id = st.sidebar.text_input("Base Model", "deepseek-ai/deepseek-coder-1b-base")
 epochs = st.sidebar.number_input("Epochs", 1, 10, 3)
 batch_size = st.sidebar.number_input("Batch Size", 1, 8, 2)
-learning_rate = st.sidebar.number_input("Learning Rate", 1e-6, 1e-3, 1e-5, format="%.1e")
-dataset = st.sidebar.selectbox("Dataset", ["synthetic", "iamtarun/python_code_instructions_18k_alpaca"])
-output_dir = st.sidebar.text_input("Output Directory", "./lora_output")
+gradient_accumulation = st.sidebar.number_input("Gradient Accumulation", 1, 32, 8)
+learning_rate = st.sidebar.number_input("Learning Rate", 1e-6, 1e-3, 2e-5, format="%.1e")
+max_length = st.sidebar.number_input("Max Sequence Length", 64, 2048, 128)
+dataset = st.sidebar.text_input("Dataset", "iamtarun/python_code_instructions_18k_alpaca")
+output_dir = st.sidebar.text_input("Output Directory", "lora_out_deepseek_1b_v4")
+num_processes = st.sidebar.number_input("Num Processes (GPUs)", 1, 8, 4)
+save_every = st.sidebar.number_input("Save Every (steps)", 100, 2000, 500)
+keep_last_n_checkpoints = st.sidebar.number_input("Keep Last N Checkpoints", 1, 10, 3)
+mixed_precision = st.sidebar.selectbox("Mixed Precision", ["fp16", "bf16", "no"], index=0)
 dry_run = st.sidebar.checkbox("Dry Run", False)
 
 # --------------------------
@@ -32,15 +38,24 @@ st.subheader("🚀 Train LoRA Model")
 train_btn = st.button("Start Training")
 
 if train_btn:
-    st.write("🔄 Starting training... please wait.")
+    st.write("🔄 Starting Accelerate training...")
+
     cmd = [
-        "python", "deepseek_coder1B_train_lora.py",
+        "accelerate", "launch",
+        "--num_processes", str(num_processes),
+        "--multi_gpu",
+        "--mixed_precision", mixed_precision,
+        "scripts/deepseek_coder1B_train_lora.py",
         "--model_id", model_id,
+        "--output_dir", output_dir,
         "--epochs", str(epochs),
         "--batch_size", str(batch_size),
+        "--gradient_accumulation", str(gradient_accumulation),
         "--learning_rate", str(learning_rate),
+        "--max_length", str(max_length),
         "--dataset", dataset,
-        "--output_dir", output_dir
+        "--save_every", str(save_every),
+        "--keep_last_n_checkpoints", str(keep_last_n_checkpoints),
     ]
     if dry_run:
         cmd.append("--dry_run")
@@ -50,22 +65,27 @@ if train_btn:
         process = subprocess.run(cmd, capture_output=True, text=True)
     st.write("✅ Training complete.")
     st.text_area("Training Output", process.stdout, height=250)
-    
-    # Find latest metrics file
-    metrics_files = [f for f in os.listdir(output_dir) if f.startswith("metrics_")]
-    if metrics_files:
-        latest = max(metrics_files, key=lambda f: os.path.getmtime(os.path.join(output_dir, f)))
-        with open(os.path.join(output_dir, latest)) as f:
-            metrics = json.load(f)
-        st.json(metrics)
 
-        # Plot loss curve if available
-        if "avg_loss_per_epoch" in metrics:
-            plt.plot(metrics["avg_loss_per_epoch"], marker="o")
-            plt.title("Training Loss per Epoch")
-            plt.xlabel("Epoch")
-            plt.ylabel("Loss")
-            st.pyplot(plt)
+    # Find latest metrics file
+    if os.path.exists(output_dir):
+        metrics_files = [f for f in os.listdir(output_dir) if f.startswith("metrics_")]
+        if metrics_files:
+            latest = max(metrics_files, key=lambda f: os.path.getmtime(os.path.join(output_dir, f)))
+            with open(os.path.join(output_dir, latest)) as f:
+                metrics = json.load(f)
+            st.json(metrics)
+
+            # Plot loss curve if available
+            if "avg_loss_per_epoch" in metrics:
+                plt.plot(metrics["avg_loss_per_epoch"], marker="o")
+                plt.title("Training Loss per Epoch")
+                plt.xlabel("Epoch")
+                plt.ylabel("Loss")
+                st.pyplot(plt)
+        else:
+            st.warning("No metrics files found in output directory.")
+    else:
+        st.error(f"Output directory '{output_dir}' not found!")
 
 # --------------------------
 # INFERENCE
@@ -77,7 +97,7 @@ run_infer = st.button("Run Inference")
 
 if run_infer:
     st.write("⚙️ Running inference...")
-    cmd = ["python", "run_inference_deepseek.py"]
+    cmd = ["python", "run_inference_deepseek.py", "--checkpoint", checkpoint_path]
     process = subprocess.run(cmd, capture_output=True, text=True)
     st.text_area("Inference Output", process.stdout, height=250)
     st.success("Inference complete!")
@@ -88,19 +108,21 @@ if run_infer:
 st.subheader("📊 Evaluation Metrics")
 
 if st.button("Evaluate BLEU / CodeBLEU"):
-    # You can use CodeBLEU library: pip install codebleu
-    from codebleu import calc_code_bleu
+    try:
+        from codebleu import calc_code_bleu
+    except ImportError:
+        st.error("CodeBLEU not installed. Run: pip install codebleu")
+        st.stop()
 
-    refs = []
-    hyps = []
-
-    for file in os.listdir("results"):
-        if file.endswith(".json"):
-            with open(os.path.join("results", file)) as f:
-                lines = f.readlines()
-                if len(lines) >= 4:
-                    refs.append(lines[1])  # expected answer (optional)
-                    hyps.append(lines[3])  # generated output
+    refs, hyps = [], []
+    if os.path.exists("results"):
+        for file in os.listdir("results"):
+            if file.endswith(".json"):
+                with open(os.path.join("results", file)) as f:
+                    lines = f.readlines()
+                    if len(lines) >= 4:
+                        refs.append(lines[1])
+                        hyps.append(lines[3])
 
     if refs and hyps:
         codebleu_score = calc_code_bleu(refs, hyps, lang="python")
@@ -116,10 +138,15 @@ st.subheader("🧮 System Metrics")
 
 if torch.cuda.is_available():
     gpu_mem = torch.cuda.max_memory_allocated() / (1024 ** 3)
-    st.write(f"💾 GPU Memory Used: {gpu_mem:.2f} GB")
+    gpu_name = torch.cuda.get_device_name(0)
+    st.write(f"💾 GPU: {gpu_name}")
+    st.write(f"💽 GPU Memory Used: {gpu_mem:.2f} GB")
 else:
     st.write("⚠️ Running on CPU (GPU not available).")
 
-model_size_mb = sum(p.numel() for p in torch.load(output_dir + "/pytorch_model.bin", map_location="cpu").values()) * 4 / (1024 ** 2)
-st.write(f"📦 Model Size: {model_size_mb:.2f} MB")
-
+if os.path.exists(os.path.join(output_dir, "pytorch_model.bin")):
+    model_size_mb = (
+        sum(p.numel() for p in torch.load(os.path.join(output_dir, "pytorch_model.bin"), map_location="cpu").values())
+        * 4 / (1024 ** 2)
+    )
+    st.write(f"📦 Model Size: {model_size_mb:.2f} MB")
