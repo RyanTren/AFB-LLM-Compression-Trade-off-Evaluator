@@ -8,9 +8,9 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 import torch
 
-st.set_page_config(page_title="LoRA Compression Dashboard", layout="wide")
+st.set_page_config(page_title="AFB Robins | LLM-LoRA Compression Dashboard", layout="wide")
 
-st.title("💡 LLM Compression Dashboard (LoRA vs Full Model)")
+st.title("AFB Robins | LLM Compression Dashboard (LoRA vs Full Model)")
 
 # --------------------------
 # Sidebar configuration
@@ -34,7 +34,7 @@ train_btn = st.button("Start Training")
 if train_btn:
     st.write("🔄 Starting training... please wait.")
     cmd = [
-        "python", "train_lora.py",
+        "python", "deepseek_coder1B_train_lora.py",
         "--model_id", model_id,
         "--epochs", str(epochs),
         "--batch_size", str(batch_size),
@@ -72,12 +72,12 @@ if train_btn:
 # --------------------------
 st.subheader("🧠 Inference")
 
-checkpoint_path = st.text_input("Checkpoint Path", f"{output_dir}/checkpoint-epoch{epochs-1}-step1000")
+checkpoint_path = st.text_input("Checkpoint Path", f"{output_dir}")
 run_infer = st.button("Run Inference")
 
 if run_infer:
     st.write("⚙️ Running inference...")
-    cmd = ["python", "infer_lora.py"]
+    cmd = ["python", "run_inference_deepseek.py"]
     process = subprocess.run(cmd, capture_output=True, text=True)
     st.text_area("Inference Output", process.stdout, height=250)
     st.success("Inference complete!")
