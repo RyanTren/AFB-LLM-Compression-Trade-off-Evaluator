@@ -3,9 +3,7 @@ import subprocess
 import json
 import time
 import streamlit as st
-import pandas as pd
 import matplotlib.pyplot as plt
-from datetime import datetime
 import torch
 
 st.set_page_config(page_title="AFB Robins | LLM-LoRA Compression Dashboard", layout="wide")
@@ -60,13 +58,30 @@ if train_btn:
     if dry_run:
         cmd.append("--dry_run")
 
-    start_time = time.time()
-    with st.spinner("Training in progress... this may take a while"):
-        process = subprocess.run(cmd, capture_output=True, text=True)
-    st.write("✅ Training complete.")
-    st.text_area("Training Output", process.stdout, height=250)
+    st.info("Launching training with command:")
+    st.code(" ".join(cmd), language="bash")
 
-    # Find latest metrics file
+    # Live log output
+    log_placeholder = st.empty()
+    progress_placeholder = st.empty()
+
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+    logs = ""
+    start_time = time.time()
+
+    with st.spinner("Training in progress..."):
+        for line in process.stdout:
+            logs += line
+            log_placeholder.text_area("📜 Live Training Logs", logs, height=400)
+            time.sleep(0.05)
+
+    process.wait()
+    duration = time.time() - start_time
+    st.success(f"✅ Training completed in {duration/60:.1f} minutes")
+
+    # --------------------------
+    # Load metrics (if available)
+    # --------------------------
     if os.path.exists(output_dir):
         metrics_files = [f for f in os.listdir(output_dir) if f.startswith("metrics_")]
         if metrics_files:
@@ -75,7 +90,6 @@ if train_btn:
                 metrics = json.load(f)
             st.json(metrics)
 
-            # Plot loss curve if available
             if "avg_loss_per_epoch" in metrics:
                 plt.plot(metrics["avg_loss_per_epoch"], marker="o")
                 plt.title("Training Loss per Epoch")
@@ -83,7 +97,7 @@ if train_btn:
                 plt.ylabel("Loss")
                 st.pyplot(plt)
         else:
-            st.warning("No metrics files found in output directory.")
+            st.warning("No metrics file found in output directory.")
     else:
         st.error(f"Output directory '{output_dir}' not found!")
 
