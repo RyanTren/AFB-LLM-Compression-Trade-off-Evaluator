@@ -5,8 +5,11 @@ import requests
 import streamlit as st
 
 # ---------- Config ----------
-API_URL_DEFAULT = "http://localhost:8510/generate"
-CODEBLEU_DIR = str(Path("~/mnt/cst/gpu4/sperry46/p10-t1llmcomp/CodeXGLUE/Code-Code/code-to-code-trans/evaluator/CodeBLEU").expanduser())
+API_URL_DEFAULT = "http://localhost:8000/generate"
+CODEBLEU_DIR = os.getenv(
+    "CODEBLEU_DIR",
+    str(Path("~/CodeXGLUE/Code-Code/code-to-code-trans/evaluator/CodeBLEU").expanduser())
+)
 CALC_SCRIPT = str(Path(CODEBLEU_DIR) / "calc_code_bleu.py")
 SPLIT_TOKEN = "<END_OF_SNIPPET>"
 # ----------------------------
