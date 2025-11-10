@@ -21,7 +21,7 @@ epochs = st.sidebar.number_input("Epochs", 1, 10, 3)
 batch_size = st.sidebar.number_input("Batch Size", 1, 8, 2)
 learning_rate = st.sidebar.number_input("Learning Rate", 1e-6, 1e-3, 1e-5, format="%.1e")
 dataset = st.sidebar.selectbox("Dataset", ["synthetic", "iamtarun/python_code_instructions_18k_alpaca"])
-output_dir = st.sidebar.text_input("Output Directory", "./lora_output")
+output_dir = st.sidebar.text_input("Output Directory", "./deepseek_coder1B_lora_out")
 dry_run = st.sidebar.checkbox("Dry Run", False)
 
 # --------------------------
@@ -34,7 +34,7 @@ train_btn = st.button("Start Training")
 if train_btn:
     st.write("🔄 Starting training... please wait.")
     cmd = [
-        "python", "deepseek_coder1B_train_lora.py",
+        "python3", "deepseek_coder1B_train_lora.py",
         "--model_id", model_id,
         "--epochs", str(epochs),
         "--batch_size", str(batch_size),
@@ -77,7 +77,7 @@ run_infer = st.button("Run Inference")
 
 if run_infer:
     st.write("⚙️ Running inference...")
-    cmd = ["python", "run_inference_deepseek.py"]
+    cmd = ["python3", "run_inference_deepseek.py"]
     process = subprocess.run(cmd, capture_output=True, text=True)
     st.text_area("Inference Output", process.stdout, height=250)
     st.success("Inference complete!")
