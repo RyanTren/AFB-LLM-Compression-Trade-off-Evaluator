@@ -49,6 +49,7 @@ import json
 import os
 import random
 import time
+from contextlib import contextmanager
 from typing import Dict, Iterable, Optional, Tuple
 
 import torch
@@ -58,11 +59,27 @@ from transformers import AutoTokenizer
 
 
 # ----------------------------
+# Utilities
+# ----------------------------
+@contextmanager
+def _without_hf_token():
+    """Temporarily remove HF auth token so public datasets never 401."""
+    saved = {k: os.environ.pop(k, None) for k in ("HUGGINGFACE_HUB_TOKEN", "HF_TOKEN")}
+    try:
+        yield
+    finally:
+        for k, v in saved.items():
+            if v is not None:
+                os.environ[k] = v
+
+
+# ----------------------------
 # Data iteration helpers
 # ----------------------------
 def _iter_nl_texts(dataset: str, subset: Optional[str], split: str, text_field: str) -> Iterable[str]:
     """Yield NL texts from a (non-streaming) HF dataset."""
-    ds = load_dataset(dataset, subset, split=split) if subset else load_dataset(dataset, split=split)
+    with _without_hf_token():
+        ds = load_dataset(dataset, subset, split=split) if subset else load_dataset(dataset, split=split)
     col = text_field if text_field in ds.column_names else ds.column_names[0]
     for v in ds[col]:
         s = str(v)
@@ -91,32 +108,36 @@ def _iter_code_texts(
            - json:    hf://datasets/{dataset}/*.json.gz
     """
     def _from_files(files: str, fmt: str):
-        if fmt.lower() == "parquet" or (isinstance(files, str) and files.endswith(".parquet")):
-            return load_dataset("parquet", data_files=files, split=split, streaming=True)
-        return load_dataset("json", data_files=files, split=split, streaming=True)
+        with _without_hf_token():
+            if fmt.lower() == "parquet" or (isinstance(files, str) and files.endswith(".parquet")):
+                return load_dataset("parquet", data_files=files, split=split, streaming=True)
+            return load_dataset("json", data_files=files, split=split, streaming=True)
 
     # Try to build the streaming dataset
     try:
         if data_files:
             ds = _from_files(data_files, data_format)
         else:
-            ds = load_dataset(dataset, split=split, streaming=True)
+            with _without_hf_token():
+                ds = load_dataset(dataset, split=split, streaming=True)
     except Exception:
         # Heuristics for common layouts
         try:
-            ds = load_dataset(
-                "parquet",
-                data_files=f"hf://datasets/{dataset}/data/train-*.parquet",
-                split=split,
-                streaming=True,
-            )
+            with _without_hf_token():
+                ds = load_dataset(
+                    "parquet",
+                    data_files=f"hf://datasets/{dataset}/data/train-*.parquet",
+                    split=split,
+                    streaming=True,
+                )
         except Exception:
-            ds = load_dataset(
-                "json",
-                data_files=f"hf://datasets/{dataset}/*.json.gz",
-                split=split,
-                streaming=True,
-            )
+            with _without_hf_token():
+                ds = load_dataset(
+                    "json",
+                    data_files=f"hf://datasets/{dataset}/*.json.gz",
+                    split=split,
+                    streaming=True,
+                )
 
     want_langs = {l.strip().lower() for l in langs_csv.split(",")} if (langs_csv is not None and len(langs_csv.strip()) > 0) else set()
 
@@ -274,7 +295,7 @@ def main():
         static_groups=args.static_groups,
     )
 
-    # Load model
+    # Load model (token available here if needed)
     print(f"[INFO] Loading base model (AutoGPTQ) …")
     model = AutoGPTQForCausalLM.from_pretrained(
         args.model,
@@ -360,8 +381,14 @@ def main():
             }
         })
 
-    if len(examples) < args.nsamples:
-        print(f"[WARN] Built {len(examples)} calibration examples (target {args.nsamples}).")
+    # ---- NEW: fail fast if zero examples ----
+    if len(examples) == 0:
+        raise SystemExit(
+            "No calibration examples were built. "
+            "Fix by: (a) passing --code-data-files to JSON/Parquet shards, "
+            "(b) setting --code-text-field (e.g., 'content'), and/or "
+            "(c) using --code-langs '' for datasets without a 'language' column."
+        )
 
     # Quantize
     t0 = time.time()
@@ -385,7 +412,7 @@ def main():
         "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         "cuda": torch.version.cuda,
         "torch": torch.__version__,
-        "note": "Use use_triton=False on older GPUs; this script is robust to files-only HF datasets."
+        "note": "Token is suppressed during dataset streaming to avoid 401 on public repos."
     }
     with open(os.path.join(args.output, "gptq_metadata.json"), "w") as f:
         json.dump(meta, f, indent=2)
