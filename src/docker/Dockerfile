@@ -19,7 +19,7 @@ RUN pip install -U pip && pip install --no-cache-dir -r requirements.txt
 
 # Copy just the quantizer entrypoint (and anything it imports)
 COPY quantize_llama_gptq.py /app/quantize_llama_gptq.py
-
+COPY pack_quant.py /app/pack_quant.py
 # We’ll mount /out and /models at runtime
 ENV HF_HOME=/out/.hf_cache \
     TRANSFORMERS_CACHE=/out/.hf_cache \
