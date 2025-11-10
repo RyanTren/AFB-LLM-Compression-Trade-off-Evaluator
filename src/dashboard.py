@@ -19,6 +19,7 @@ st.sidebar.header("⚙️ Training Configuration")
 model_id = st.sidebar.text_input("Base Model", "deepseek-ai/deepseek-coder-1b-base")
 epochs = st.sidebar.number_input("Epochs", 1, 10, 3)
 batch_size = st.sidebar.number_input("Batch Size", 1, 8, 2)
+<<<<<<< HEAD
 gradient_accumulation = st.sidebar.number_input("Gradient Accumulation", 1, 32, 8)
 learning_rate = st.sidebar.number_input("Learning Rate", 1e-6, 1e-3, 2e-5, format="%.1e")
 max_length = st.sidebar.number_input("Max Sequence Length", 64, 2048, 128)
@@ -28,6 +29,11 @@ num_processes = st.sidebar.number_input("Num Processes (GPUs)", 1, 8, 4)
 save_every = st.sidebar.number_input("Save Every (steps)", 100, 2000, 500)
 keep_last_n_checkpoints = st.sidebar.number_input("Keep Last N Checkpoints", 1, 10, 3)
 mixed_precision = st.sidebar.selectbox("Mixed Precision", ["fp16", "bf16", "no"], index=0)
+=======
+learning_rate = st.sidebar.number_input("Learning Rate", 1e-6, 1e-3, 1e-5, format="%.1e")
+dataset = st.sidebar.selectbox("Dataset", ["synthetic", "iamtarun/python_code_instructions_18k_alpaca"])
+output_dir = st.sidebar.text_input("Output Directory", "./deepseek_coder1B_lora_out")
+>>>>>>> c6440ace25bcbc66b69a45232c1917550b9c007d
 dry_run = st.sidebar.checkbox("Dry Run", False)
 
 # --------------------------
@@ -41,11 +47,15 @@ if train_btn:
     st.write("🔄 Starting Accelerate training...")
 
     cmd = [
+<<<<<<< HEAD
         "accelerate", "launch",
         "--num_processes", str(num_processes),
         "--multi_gpu",
         "--mixed_precision", mixed_precision,
         "scripts/deepseek_coder1B_train_lora.py",
+=======
+        "python3", "deepseek_coder1B_train_lora.py",
+>>>>>>> c6440ace25bcbc66b69a45232c1917550b9c007d
         "--model_id", model_id,
         "--output_dir", output_dir,
         "--epochs", str(epochs),
@@ -97,7 +107,11 @@ run_infer = st.button("Run Inference")
 
 if run_infer:
     st.write("⚙️ Running inference...")
+<<<<<<< HEAD
     cmd = ["python", "run_inference_deepseek.py", "--checkpoint", checkpoint_path]
+=======
+    cmd = ["python3", "run_inference_deepseek.py"]
+>>>>>>> c6440ace25bcbc66b69a45232c1917550b9c007d
     process = subprocess.run(cmd, capture_output=True, text=True)
     st.text_area("Inference Output", process.stdout, height=250)
     st.success("Inference complete!")
