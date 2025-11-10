@@ -1,0 +1,23 @@
+# Core runtime compatible with Python 3.10 + cu118 (Torch 2.1.2)
+numpy==1.26.4
+safetensors==0.4.5
+sentencepiece==0.1.99
+requests==2.32.3
+PyYAML==6.0.2
+
+# Hugging Face stack for GPTQ + dataset calibration
+transformers==4.36.2
+tokenizers==0.15.2
+accelerate==0.24.1
+datasets==2.19.0
+pyarrow==14.0.2
+fsspec==2023.10.0
+
+
+# AutoGPTQ wheels that match the above (no post1)
+auto-gptq==0.5.1
+huggingface_hub==0.23.5
+# Match the base image (don’t auto-upgrade Torch)
+torch==2.1.2
+torchaudio==2.1.2
+torchvision==0.16.2

@@ -1,0 +1,11 @@
+fastapi==0.115.0
+uvicorn==0.30.6
+
+# match the quantization env
+transformers==4.36.2
+auto-gptq==0.5.1
+accelerate==0.24.1
+peft==0.10.0
+
+safetensors==0.4.5
+sentencepiece==0.1.99
