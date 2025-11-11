@@ -6,6 +6,13 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import torch
 
+
+os.environ["NCCL_P2P_LEVEL"] = "SYS"
+os.environ["NCCL_IB_DISABLE"] = "1"
+os.environ["NCCL_SOCKET_IFNAME"] = "^lo,docker0"
+os.environ["NCCL_DEBUG"] = "INFO"
+
+
 st.set_page_config(page_title="AFB Robins | LLM-LoRA Compression Dashboard", layout="wide")
 
 st.title("AFB Robins | LLM Compression Dashboard (LoRA vs Full Model)")
