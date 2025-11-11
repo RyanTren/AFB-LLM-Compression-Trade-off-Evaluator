@@ -9,9 +9,10 @@ from accelerate import Accelerator
 
 
 os.environ["NCCL_DEBUG"] = "INFO"
-os.environ["NCCL_IB_DISABLE"] = "1"
-os.environ["NCCL_SOCKET_IFNAME"] = ""
-os.environ["NCCL_P2P_LEVEL"] = "PXB"
+os.environ["NCCL_IB_DISABLE"] = "1"             # disable InfiniBand
+os.environ["NCCL_SOCKET_IFNAME"] = ""          # ignore IB network
+os.environ["NCCL_P2P_LEVEL"] = "PXB"           # peer-to-peer over PCIe
+
 
 st.set_page_config(page_title="AFB Robins | LLM-LoRA Compression Dashboard", layout="wide")
 
@@ -104,9 +105,19 @@ if train_btn:
         for line in iter(process.stdout.readline, ''):
             if line:
                 logs += line
-                log_placeholder.markdown(f"<pre>{logs}</pre>", unsafe_allow_html=True)
+                log_placeholder.markdown(
+                    f"""
+                    <div id='log' style='height:400px; overflow:auto; white-space:pre-wrap; font-family:monospace;'>
+                    {logs}
+                    </div>
+                    <script>
+                    var logDiv = document.getElementById('log');
+                    logDiv.scrollTop = logDiv.scrollHeight;
+                    </script>
+                    """,
+                    unsafe_allow_html=True
+                )
 
-            
             # Refresh metrics every 10 seconds
             if time.time() - last_metrics_update > 10:
                 last_metrics_update = time.time()
