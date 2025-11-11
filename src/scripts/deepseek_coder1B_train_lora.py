@@ -172,6 +172,7 @@ def main():
     # ------------------------
     dataset_names = [d.strip() for d in args.dataset.split(",")]
     processed_datasets = []
+    stream_loaders = []
 
     for name in dataset_names:
 
@@ -264,7 +265,7 @@ def main():
                 pin_memory=True,
             )
 
-            processed_datasets.append(alpaca_ds)
+            processed_datasets.append(ds)
 
         elif args.dataset == "synthetic":
             from datasets import Dataset
