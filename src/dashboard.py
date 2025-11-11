@@ -9,8 +9,9 @@ from accelerate import Accelerator
 
 
 os.environ["NCCL_DEBUG"] = "INFO"
-os.environ["NCCL_IB_DISABLE"] = "0"
-os.environ["NCCL_SOCKET_IFNAME"] = "ibp8s0"
+os.environ["NCCL_IB_DISABLE"] = "1"             # disable InfiniBand
+os.environ["NCCL_SOCKET_IFNAME"] = ""          # ignore IB network
+os.environ["NCCL_P2P_LEVEL"] = "PXB"           # peer-to-peer over PCIe
 os.environ["NCCL_BLOCKING_WAIT"] = "1"
 
 st.set_page_config(page_title="AFB Robins | LLM-LoRA Compression Dashboard", layout="wide")
