@@ -29,10 +29,45 @@ def load_results(dir_path):
 
 
 def load_references(ref_path, prompts):
-    """Load reference solutions for the given prompts"""
+    """Load reference solutions for the given prompts with fuzzy matching"""
     with open(ref_path, "r") as f:
         refs_json = json.load(f)
-    refs = [refs_json.get(p, "") for p in prompts]
+    
+    refs = []
+    for prompt in prompts:
+        # Clean the prompt (remove # and extra whitespace)
+        clean_prompt = prompt.strip().lstrip('#').strip().rstrip('.')
+        
+        # Try exact match first
+        if prompt in refs_json:
+            refs.append(refs_json[prompt])
+        elif clean_prompt in refs_json:
+            refs.append(refs_json[clean_prompt])
+        else:
+            # Try fuzzy matching - look for key similarity
+            best_match = None
+            best_score = 0
+            
+            for ref_key in refs_json.keys():
+                # Simple word overlap matching
+                prompt_words = set(clean_prompt.lower().split())
+                ref_words = set(ref_key.lower().split())
+                
+                if prompt_words and ref_words:
+                    overlap = len(prompt_words & ref_words)
+                    score = overlap / max(len(prompt_words), len(ref_words))
+                    
+                    if score > best_score and score > 0.3:  # At least 30% word overlap
+                        best_score = score
+                        best_match = ref_key
+            
+            if best_match:
+                refs.append(refs_json[best_match])
+                print(f"  📎 Matched '{clean_prompt[:50]}...' -> '{best_match[:50]}...'")
+            else:
+                refs.append("")  # No match found
+                print(f"  ⚠️ No reference found for: '{clean_prompt[:60]}'")
+    
     return refs
 
 
@@ -44,12 +79,23 @@ def evaluate_folder(folder_path, ref_path):
     refs = load_references(ref_path, prompts)
     print(f"🔍 Evaluating {len(generated)} samples in {os.path.basename(folder_path)}...")
 
+    # Debug: Show first sample
+    if generated and refs:
+        print(f"\n📝 DEBUG - First sample:")
+        print(f"Prompt: {prompts[0][:100]}...")
+        print(f"Reference length: {len(refs[0])} chars")
+        print(f"Generated length: {len(generated[0])} chars")
+        print(f"Reference preview: {refs[0][:100]}...")
+        print(f"Generated preview: {generated[0][:100]}...\n")
+
     scores = []
-    for ref, hyp in zip(refs, generated):
+    for i, (ref, hyp) in enumerate(zip(refs, generated)):
         try:
             # Try with language parameter (newer API)
             result = calc_codebleu([ref], [hyp], lang=LANGUAGE)
-            scores.append(result["codebleu"])
+            score = result["codebleu"]
+            scores.append(score)
+            print(f"  Sample {i}: CodeBLEU = {score:.4f}")
         except (TypeError, AttributeError) as e:
             # Simple token-based similarity as fallback
             ref_tokens = set(ref.split())
@@ -64,6 +110,7 @@ def evaluate_folder(folder_path, ref_path):
                 score = 0.0
             
             scores.append(score)
+            print(f"  Sample {i}: Jaccard = {score:.4f} (fallback)")
 
     avg_score = sum(scores) / len(scores) if scores else 0.0
     return avg_score
