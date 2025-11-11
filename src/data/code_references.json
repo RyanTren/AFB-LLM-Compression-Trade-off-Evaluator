@@ -1,6 +1,7 @@
 {
-  "Implement a function to reverse a string": "def reverse_string(s): return s[::-1]",
-  "Write a function to check if a string is a palindrome": "def is_palindrome(s): return s == s[::-1]",
-  "Create a function to find the longest substring without repeating characters": "def longest_unique_substring(s): ...",
-  "Implement a function to count character frequency in a string": "from collections import Counter\ndef char_freq(s): return Counter(s)"
+    "# Reverse a string in Python.": "def reverse_string(s):\n    return s[::-1]",
+    "# Check if a string is a palindrome": "def is_palindrome(s):\n    return s == s[::-1]",
+    "# Count vowels and consonants in a string": "def count_vowels_consonants(s):\n    vowels = sum(1 for c in s.lower() if c in 'aeiou')\n    consonants = sum(1 for c in s.lower() if c.isalpha() and c not in 'aeiou')\n    return vowels, consonants",
+    "# Remove duplicate characters from a string": "def remove_duplicates(s):\n    seen = set()\n    result = []\n    for char in s:\n        if char not in seen:\n            seen.add(char)\n            result.append(char)\n    return ''.join(result)",
+    "# Compress a string using run-length encoding": "def run_length_encode(s):\n    if not s:\n        return ''\n    result = []\n    count = 1\n    for i in range(1, len(s)):\n        if s[i] == s[i-1]:\n            count += 1\n        else:\n            result.append(s[i-1] + str(count))\n            count = 1\n    result.append(s[-1] + str(count))\n    return ''.join(result)"
 }
