@@ -3,7 +3,7 @@ import json
 from codebleu import calc_codebleu
 
 BASE_RESULTS_DIR = "./results"
-LANGUAGE = "python3"
+LANGUAGE = "python"
 REFS_PATH = "data/code_references.json"
 
 def load_results(dir_path):
