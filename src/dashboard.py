@@ -7,10 +7,11 @@ import matplotlib.pyplot as plt
 import torch
 
 
-os.environ["NCCL_P2P_LEVEL"] = "SYS"
-os.environ["NCCL_IB_DISABLE"] = "1"
-os.environ["NCCL_SOCKET_IFNAME"] = "^lo,docker0"
 os.environ["NCCL_DEBUG"] = "INFO"
+os.environ["NCCL_IB_DISABLE"] = "1"
+os.environ["NCCL_P2P_LEVEL"] = "NVL"
+os.environ.pop("NCCL_SOCKET_IFNAME", None)
+
 
 
 st.set_page_config(page_title="AFB Robins | LLM-LoRA Compression Dashboard", layout="wide")
@@ -54,10 +55,7 @@ if train_btn:
         num_processes = num_gpus
 
     os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, range(num_processes)))
-    os.environ["NCCL_P2P_LEVEL"] = "SYS"
-    os.environ["NCCL_IB_DISABLE"] = "1"
-    os.environ["NCCL_DEBUG"] = "INFO"
-
+ 
     cmd = [
         "accelerate", "launch",
         "--num_processes", str(num_processes),
