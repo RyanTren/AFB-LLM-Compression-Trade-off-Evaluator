@@ -104,7 +104,8 @@ if train_btn:
         for line in iter(process.stdout.readline, ''):
             if line:
                 logs += line
-                log_placeholder.text_area("📜 Live Training Logs", logs, height=400)
+                log_placeholder.markdown(f"<pre>{logs}</pre>", unsafe_allow_html=True)
+
             
             # Refresh metrics every 10 seconds
             if time.time() - last_metrics_update > 10:
