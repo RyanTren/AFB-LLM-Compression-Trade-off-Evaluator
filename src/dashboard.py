@@ -31,7 +31,7 @@ dry_run = st.sidebar.checkbox("Dry Run", False)
 # --------------------------
 # TRAINING
 # --------------------------
-st.subheader("🚀 Train LoRA Model")
+st.subheader("AFB Robins 🚀 Train/Inference/CodeBLEU LoRA Model")
 
 train_btn = st.button("Start Training")
 
@@ -63,19 +63,54 @@ if train_btn:
 
     # Live log output
     log_placeholder = st.empty()
-    progress_placeholder = st.empty()
+    metric_placeholder = st.empty()
+    plot_placeholder = st.empty()
+
+    os.makedirs(output_dir, exist_ok=True)
 
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+
     logs = ""
+    last_metrics_update = 0
     start_time = time.time()
 
-    with st.spinner("Training in progress..."):
-        for line in process.stdout:
-            logs += line
-            log_placeholder.text_area("📜 Live Training Logs", logs, height=400)
-            time.sleep(0.05)
+    st.info("🚀 Training started — live logs and metrics below:")
 
-    process.wait()
+    with st.spinner("Training in progress..."):
+        while True:
+            line = process.stdout.readline()
+            if not line and process.poll() is not None:
+                break
+
+            if line:
+                logs += line
+                log_placeholder.text_area("📜 Live Training Logs", logs, height=400)
+            
+            # Refresh metrics every 10 seconds
+            if time.time() - last_metrics_update > 10:
+                last_metrics_update = time.time()
+                if os.path.exists(output_dir):
+                    metrics_files = [f for f in os.listdir(output_dir) if f.startswith("metrics_")]
+                    if metrics_files:
+                        latest = max(metrics_files, key=lambda f: os.path.getmtime(os.path.join(output_dir, f)))
+                        with open(os.path.join(output_dir, latest)) as f:
+                            try:
+                                metrics = json.load(f)
+                                metric_placeholder.json(metrics)
+
+                                # Plot live loss curve
+                                if "avg_loss_per_epoch" in metrics:
+                                    plt.clf()
+                                    plt.plot(metrics["avg_loss_per_epoch"], marker="o", color="royalblue")
+                                    plt.title("Training Loss per Epoch")
+                                    plt.xlabel("Epoch")
+                                    plt.ylabel("Loss")
+                                    plot_placeholder.pyplot(plt)
+                            except Exception as e:
+                                st.warning(f"Could not read metrics: {e}")
+
+        process.wait()
+
     duration = time.time() - start_time
     st.success(f"✅ Training completed in {duration/60:.1f} minutes")
 
