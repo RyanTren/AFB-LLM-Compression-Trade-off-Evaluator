@@ -102,21 +102,14 @@ if train_btn:
 
         st.info("🚀 Training started — live logs and metrics below:")
 
+        MAX_LINES = 50
         for line in iter(process.stdout.readline, ''):
             if line:
                 logs += line
-                log_placeholder.markdown(
-                    f"""
-                    <div id='log' style='height:400px; overflow:auto; white-space:pre-wrap; font-family:monospace;'>
-                    {logs}
-                    </div>
-                    <script>
-                    var logDiv = document.getElementById('log');
-                    logDiv.scrollTop = logDiv.scrollHeight;
-                    </script>
-                    """,
-                    unsafe_allow_html=True
-                )
+                # Only keep the last MAX_LINES lines
+                recent_logs = "\n".join(logs.splitlines()[-MAX_LINES:])
+                log_placeholder.text_area("📜 Live Training Logs", recent_logs, height=400)
+
 
             # Refresh metrics every 10 seconds
             if time.time() - last_metrics_update > 10:
