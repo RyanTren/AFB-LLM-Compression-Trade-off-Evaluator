@@ -5,14 +5,13 @@ import time
 import streamlit as st
 import matplotlib.pyplot as plt
 import torch
+from accelerate import Accelerator
 
 
 os.environ["NCCL_DEBUG"] = "INFO"
-os.environ["NCCL_IB_DISABLE"] = "1"
-os.environ["NCCL_P2P_LEVEL"] = "NVL"
-os.environ.pop("NCCL_SOCKET_IFNAME", None)
-
-
+os.environ["NCCL_IB_DISABLE"] = "0"
+os.environ["NCCL_SOCKET_IFNAME"] = "ibp8s0"
+os.environ["NCCL_BLOCKING_WAIT"] = "1"
 
 st.set_page_config(page_title="AFB Robins | LLM-LoRA Compression Dashboard", layout="wide")
 
