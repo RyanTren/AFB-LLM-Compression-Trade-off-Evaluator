@@ -146,7 +146,7 @@ run_infer = st.button("Run Inference")
 
 if run_infer:
     st.write("⚙️ Running inference...")
-    cmd = ["python", "run_inference_deepseek.py", "--checkpoint", checkpoint_path]
+    cmd = ["python3", "run_inference_deepseek.py", "--checkpoint", checkpoint_path]
     process = subprocess.run(cmd, capture_output=True, text=True)
     st.text_area("Inference Output", process.stdout, height=250)
     st.success("Inference complete!")
