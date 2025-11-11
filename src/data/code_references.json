@@ -1,0 +1,6 @@
+{
+  "Implement a function to reverse a string": "def reverse_string(s): return s[::-1]",
+  "Write a function to check if a string is a palindrome": "def is_palindrome(s): return s == s[::-1]",
+  "Create a function to find the longest substring without repeating characters": "def longest_unique_substring(s): ...",
+  "Implement a function to count character frequency in a string": "from collections import Counter\ndef char_freq(s): return Counter(s)"
+}
