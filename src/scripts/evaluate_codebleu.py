@@ -4,7 +4,7 @@ from codebleu import calc_codebleu
 
 BASE_RESULTS_DIR = "./results"
 LANGUAGE = "python3"
-REFS_PATH = "../data/code_references.json"
+REFS_PATH = "src/data/code_references.json"
 
 def load_results(dir_path):
     """Load all result_*.json files in a directory"""
