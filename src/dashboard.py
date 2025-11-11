@@ -38,10 +38,22 @@ train_btn = st.button("Start Training")
 if train_btn:
     st.write("🔄 Starting Accelerate training...")
 
+    # --------------------------
+    # Multi-GPU environment setup
+    # --------------------------
+    num_gpus = torch.cuda.device_count()
+    if num_processes > num_gpus:
+        st.warning(f"Requested {num_processes} GPUs, but only {num_gpus} available. Using {num_gpus}.")
+        num_processes = num_gpus
+
+    os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, range(num_processes)))
+    os.environ["NCCL_P2P_LEVEL"] = "SYS"
+    os.environ["NCCL_IB_DISABLE"] = "1"
+    os.environ["NCCL_DEBUG"] = "INFO"
+
     cmd = [
         "accelerate", "launch",
         "--num_processes", str(num_processes),
-        "--multi_gpu",
         "--mixed_precision", mixed_precision,
         "scripts/deepseek_coder1B_train_lora.py",
         "--model_id", model_id,
@@ -61,27 +73,31 @@ if train_btn:
     st.info("Launching training with command:")
     st.code(" ".join(cmd), language="bash")
 
-    # Live log output
+    # --------------------------
+    # Live log streaming
+    # --------------------------
     log_placeholder = st.empty()
     metric_placeholder = st.empty()
     plot_placeholder = st.empty()
-
     os.makedirs(output_dir, exist_ok=True)
 
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+    try:
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            universal_newlines=True
+        )
 
-    logs = ""
-    last_metrics_update = 0
-    start_time = time.time()
+        logs = ""
+        last_metrics_update = 0
+        start_time = time.time()
 
-    st.info("🚀 Training started — live logs and metrics below:")
+        st.info("🚀 Training started — live logs and metrics below:")
 
-    with st.spinner("Training in progress..."):
-        while True:
-            line = process.stdout.readline()
-            if not line and process.poll() is not None:
-                break
-
+        for line in iter(process.stdout.readline, ''):
             if line:
                 logs += line
                 log_placeholder.text_area("📜 Live Training Logs", logs, height=400)
@@ -93,12 +109,11 @@ if train_btn:
                     metrics_files = [f for f in os.listdir(output_dir) if f.startswith("metrics_")]
                     if metrics_files:
                         latest = max(metrics_files, key=lambda f: os.path.getmtime(os.path.join(output_dir, f)))
-                        with open(os.path.join(output_dir, latest)) as f:
-                            try:
+                        try:
+                            with open(os.path.join(output_dir, latest)) as f:
                                 metrics = json.load(f)
                                 metric_placeholder.json(metrics)
 
-                                # Plot live loss curve
                                 if "avg_loss_per_epoch" in metrics:
                                     plt.clf()
                                     plt.plot(metrics["avg_loss_per_epoch"], marker="o", color="royalblue")
@@ -106,35 +121,18 @@ if train_btn:
                                     plt.xlabel("Epoch")
                                     plt.ylabel("Loss")
                                     plot_placeholder.pyplot(plt)
-                            except Exception as e:
-                                st.warning(f"Could not read metrics: {e}")
+                        except Exception as e:
+                            st.warning(f"Could not read metrics: {e}")
 
         process.wait()
+        duration = time.time() - start_time
+        st.success(f"✅ Training completed in {duration/60:.1f} minutes")
 
-    duration = time.time() - start_time
-    st.success(f"✅ Training completed in {duration/60:.1f} minutes")
+    except Exception as e:
+        st.error(f"Training failed: {e}")
+        if process:
+            process.terminate()
 
-    # --------------------------
-    # Load metrics (if available)
-    # --------------------------
-    if os.path.exists(output_dir):
-        metrics_files = [f for f in os.listdir(output_dir) if f.startswith("metrics_")]
-        if metrics_files:
-            latest = max(metrics_files, key=lambda f: os.path.getmtime(os.path.join(output_dir, f)))
-            with open(os.path.join(output_dir, latest)) as f:
-                metrics = json.load(f)
-            st.json(metrics)
-
-            if "avg_loss_per_epoch" in metrics:
-                plt.plot(metrics["avg_loss_per_epoch"], marker="o")
-                plt.title("Training Loss per Epoch")
-                plt.xlabel("Epoch")
-                plt.ylabel("Loss")
-                st.pyplot(plt)
-        else:
-            st.warning("No metrics file found in output directory.")
-    else:
-        st.error(f"Output directory '{output_dir}' not found!")
 
 # --------------------------
 # INFERENCE
