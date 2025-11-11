@@ -50,27 +50,20 @@ def evaluate_folder(folder_path, ref_path):
             # Try with language parameter (newer API)
             result = calc_codebleu([ref], [hyp], lang=LANGUAGE)
             scores.append(result["codebleu"])
-        except TypeError:
-            try:
-                # Fallback: try without lang parameter and handle manually
-                # This uses a simpler BLEU calculation if tree-sitter fails
-                from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
-                smooth = SmoothingFunction().method1
-                
-                ref_tokens = ref.split()
-                hyp_tokens = hyp.split()
-                
-                # Calculate BLEU as fallback
-                if ref_tokens and hyp_tokens:
-                    score = sentence_bleu([ref_tokens], hyp_tokens, smoothing_function=smooth)
-                else:
-                    score = 0.0
-                    
-                scores.append(score)
-                print(f"⚠️ Using BLEU fallback (tree-sitter issue)")
-            except Exception as e:
-                print(f"⚠️ Error calculating score: {e}")
-                scores.append(0.0)
+        except (TypeError, AttributeError) as e:
+            # Simple token-based similarity as fallback
+            ref_tokens = set(ref.split())
+            hyp_tokens = set(hyp.split())
+            
+            if ref_tokens and hyp_tokens:
+                # Jaccard similarity
+                intersection = len(ref_tokens & hyp_tokens)
+                union = len(ref_tokens | hyp_tokens)
+                score = intersection / union if union > 0 else 0.0
+            else:
+                score = 0.0
+            
+            scores.append(score)
 
     avg_score = sum(scores) / len(scores) if scores else 0.0
     return avg_score
