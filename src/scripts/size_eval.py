@@ -19,12 +19,13 @@ for root in SEARCH_PATHS:
         largest_params = 0
 
         for ckpt in lora_folder.glob("checkpoint-*"):
-            # Try both common LoRA file names
-            pytorch_file = ckpt / "pytorch_model.bin"
-            if not pytorch_file.exists():
-                pytorch_file = ckpt / "adapter_model.bin"
-            if not pytorch_file.exists():
-                continue  # skip if no model file found
+            # Recursively search for any .bin file inside checkpoint folder
+            bin_files = list(ckpt.rglob("*.bin"))
+            if not bin_files:
+                continue  # no binary weights found
+
+            # Choose the first .bin file (usually the adapter weights)
+            pytorch_file = bin_files[0]
 
             size_mb = pytorch_file.stat().st_size / 1024**2
             adapter_weights = torch.load(pytorch_file, map_location="cpu")
