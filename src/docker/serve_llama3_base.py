@@ -4,6 +4,8 @@ from typing import Optional, List
 import torch, os
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
+if os.getenv("USE_CPU", "0") == "1":
+    os.environ["CUDA_VISIBLE_DEVICES"] = ""   # <- hide GPUs from PyTorch
 # Choose one you have access to:
 MODEL_ID = os.getenv("MODEL_ID", "meta-llama/Meta-Llama-3-8B")  # or "...-Instruct"
 
