@@ -3,8 +3,8 @@ from evalplus.data import get_human_eval_plus, write_jsonl  # HumanEval+
 from tqdm import tqdm  # pip install tqdm (optional but nice)
 
 # Your two serving containers
-BASE_URL  = "http://localhost:8511"  # un-quantized model
-QUANT_URL = "http://localhost:8000"  # quantized model
+BASE_URL  = "http://localhost:8511/generate"  # un-quantized model
+QUANT_URL = "http://localhost:8000/generate"  # quantized model
 # If your route is /generate instead of root, change to "...:8511/generate" etc.
 
 def call_model(prompt: str, url: str) -> str:
