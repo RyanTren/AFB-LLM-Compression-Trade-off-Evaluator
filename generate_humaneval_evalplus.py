@@ -13,7 +13,7 @@ def call_model(prompt: str, url: str) -> str:
         "prompt": prompt,
         "max_new_tokens": 128,  # you can bump this if your server allows it
         # For evaluation we want deterministic outputs:
-        "temperature": 0.0,
+        "temperature": 0.2,
         "top_p": 1.0,
     }
     r = requests.post(url, json=payload, timeout=120)
