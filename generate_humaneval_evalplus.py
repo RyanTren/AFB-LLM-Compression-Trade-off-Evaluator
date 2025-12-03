@@ -16,7 +16,7 @@ def call_model(prompt: str, url: str) -> str:
         "temperature": 0.2,
         "top_p": 1.0,
     }
-    r = requests.post(url, json=payload, timeout=120)
+    r = requests.post(url, json=payload, timeout=12000000)
     r.raise_for_status()
     data = r.json()
     return data["response"]  # matches your schema
