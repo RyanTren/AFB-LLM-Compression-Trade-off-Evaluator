@@ -15,7 +15,11 @@ function App() {
 
       <div style={{padding: '2px', textAlign: 'center'}}>
         <h1 style={{textShadow: '0 0 5px yelow'}}>P10-T1 LLM Comp Final Report</h1>
-        <h3>developed & documented by</h3>
+        <h2>Course: CS4850 Section 03</h2>
+        <h2>Semester: Fall 2025</h2>
+        <h2>Professor: Sharron Perry</h2>
+
+        <h3>Website/Project Developed & Documented By...</h3>
         <TeamSection />
       </div>
       
