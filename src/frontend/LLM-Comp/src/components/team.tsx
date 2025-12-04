@@ -1,4 +1,4 @@
-import React from "react";
+// import React from "react";
 
 import aldi from "../assets/aldi.png";
 import pranav from "../assets/pranav.png";
