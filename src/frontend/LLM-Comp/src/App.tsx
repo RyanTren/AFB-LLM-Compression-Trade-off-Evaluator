@@ -26,7 +26,7 @@ function App() {
       </div>
 
       <div className="card" style={{alignContent: 'center', display: 'column', gap: '5px', margin: '10px', padding: '10px'}}>
-        <button onClick={() => window.open("public/P10-T1-LLM-Comp-FinalReport-Draft.pdf", "_blank")}>
+        <button onClick={() => window.open("/P10-T1-LLM-Comp-FinalReport-Draft.pdf", "_blank")}>
           Final Report PDF
         </button>
       </div>
