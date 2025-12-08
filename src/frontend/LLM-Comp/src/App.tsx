@@ -30,7 +30,7 @@ function App() {
       </div>
 
       <div className="card" style={{alignContent: 'center', display: 'column', gap: '5px', margin: '10px', padding: '10px'}}>
-        <button onClick={() => window.open("/P10-T1-LLM-Comp-FinalReport-Draft.pdf", "_blank")}>
+        <button onClick={() => window.open("/P10-T1-LLM-Comp-FinalReport.pdf", "_blank")}>
           Final Report PDF
         </button>
       </div>
@@ -42,7 +42,7 @@ function App() {
       </div>
 
       <div className="card" style={{alignContent: 'center', display: 'column', gap: '5px', margin: '10px', padding: '10px'}}>
-        <button onClick={() => window.open("https://youtube.com/watch?v=dQw4w9WgXcQ", "_blank")}>
+        <button onClick={() => window.open("https://www.youtube.com/watch?v=DqjleGiVYeU", "_blank")}>
           Final Presentation Video
         </button>
       </div>
